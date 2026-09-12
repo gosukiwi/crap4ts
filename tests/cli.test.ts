@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { main } from "../src/cli.js";
-import { crapScore } from "../src/crap.js";
+import { crapScore } from "../src/crap/index.js";
 
 const fixturesDir = path.dirname(fileURLToPath(import.meta.url));
 const projA = path.join(fixturesDir, "fixtures", "projA");
@@ -192,8 +192,8 @@ describe("cli", () => {
     fs.writeFileSync(tmp, raw.replace("SF:src/a.ts", "SF:src/nope.ts"));
     const code = await main(["--coverage", tmp, "--max-crap", "15"]);
     expect(code).toBe(2);
-    expect(errorSpy.mock.calls.map((args) => String(args[0])).join("\n")).toContain(
-      "--max-crap requires coverage data",
-    );
+    expect(
+      errorSpy.mock.calls.map((args) => String(args[0])).join("\n"),
+    ).toContain("--max-crap requires coverage data");
   });
 });

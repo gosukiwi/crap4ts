@@ -2,10 +2,12 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { pathToFileURL } from "node:url";
-import { analyzeComplexity } from "./complexity.js";
-import type { ComplexityProfile } from "./complexity.js";
-import { assembleRecord } from "./crap.js";
-import type { CrapRecord } from "./crap.js";
+import {
+  analyzeComplexity,
+  assembleRecord,
+  type ComplexityProfile,
+  type CrapRecord,
+} from "./crap/index.js";
 import {
   functionCoverage,
   matchLcovFile,
@@ -149,7 +151,11 @@ function collectTsFiles(dir: string): string[] {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       out.push(...collectTsFiles(full));
-    } else if (entry.isFile() && full.endsWith(".ts") && !full.endsWith(".d.ts")) {
+    } else if (
+      entry.isFile() &&
+      full.endsWith(".ts") &&
+      !full.endsWith(".d.ts")
+    ) {
       out.push(full);
     }
   }
@@ -247,7 +253,9 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
       process.exitCode = code;
     },
     (err) => {
-      console.error(`crap4ts: ${err instanceof Error ? err.message : String(err)}`);
+      console.error(
+        `crap4ts: ${err instanceof Error ? err.message : String(err)}`,
+      );
       process.exitCode = 2;
     },
   );

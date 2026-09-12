@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  functionCoverage,
-  parseLcov,
-} from "../src/lcov.js";
+import { functionCoverage, parseLcov } from "../src/lcov.js";
 
 describe("parseLcov", () => {
   it("parses two files into two LcovFiles", () => {

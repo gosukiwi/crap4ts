@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CrapRecord } from "../src/crap.js";
+import type { CrapRecord } from "../src/crap/index.js";
 import { renderJson, renderTable } from "../src/report.js";
 
 const records: CrapRecord[] = [

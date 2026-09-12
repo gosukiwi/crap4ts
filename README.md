@@ -30,7 +30,7 @@ No cover file? It still works. It shows complexity with empty score fields.
 You need Node 20 or newer.
 
 ```bash
-npm install -D crap4ts
+npm install -D @gosukiwi/crap4ts
 ```
 
 Plain run:
@@ -56,7 +56,7 @@ npm run crap
 Stop risky code in CI (exit 1 means some function is over the limit):
 
 ```bash
-npx crap4ts src --coverage ./coverage/lcov.info --max-crap 15
+npx @gosukiwi/crap4ts src --coverage ./coverage/lcov.info --max-crap 15
 ```
 
 ## Output

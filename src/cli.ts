@@ -139,14 +139,21 @@ function toAbsolute(p: string, cwd: string): string {
   return normalize(path.resolve(cwd, p));
 }
 
+function segments(p: string): string[] {
+  return normalize(p)
+    .split("/")
+    .filter((s) => s !== "" && s !== ".");
+}
+
 function suffixJoin(a: string, b: string): boolean {
-  const longer = a.length >= b.length ? a : b;
-  const shorter = a.length >= b.length ? b : a;
-  return (
-    longer.length > shorter.length &&
-    longer.endsWith(shorter) &&
-    longer[longer.length - shorter.length - 1] === "/"
-  );
+  const sa = segments(a);
+  const sb = segments(b);
+  if (sa.length === 0 || sb.length === 0) return false;
+  const longer = sa.length >= sb.length ? sa : sb;
+  const shorter = sa.length >= sb.length ? sb : sa;
+  if (longer.length === shorter.length) return false;
+  const tail = longer.slice(longer.length - shorter.length);
+  return tail.every((s, i) => s === shorter[i]);
 }
 
 function findLcovFile(
@@ -162,7 +169,7 @@ function findLcovFile(
     if (toAbsolute(f.file, cwd) === analyzedAbs) return f;
   }
   for (const f of lcovFiles) {
-    if (suffixJoin(toAbsolute(f.file, cwd), analyzedAbs)) return f;
+    if (suffixJoin(normalize(f.file), rel)) return f;
   }
   return null;
 }

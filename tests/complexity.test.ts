@@ -167,6 +167,17 @@ function e(a: boolean, b: boolean) {
     expect(analyzeComplexity("a.ts", bracket, "strict")[0].complexity).toBe(2);
   });
 
+  it("counts ?. on tagged templates the same as ?. under strict", () => {
+    const dot = `function o(a: any) {
+  return a?.b;
+}`;
+    const tagged = "function o(tag: any) {\n  return tag?.`hi`;\n}";
+    expect(analyzeComplexity("a.ts", tagged, "strict")[0].complexity).toBe(
+      analyzeComplexity("a.ts", dot, "strict")[0].complexity,
+    );
+    expect(analyzeComplexity("a.ts", tagged, "strict")[0].complexity).toBe(2);
+  });
+
   it("reports 1-based line/col and inclusive endLine of the body", () => {
     const src = `function f(x: number): number {
   if (x > 0) {

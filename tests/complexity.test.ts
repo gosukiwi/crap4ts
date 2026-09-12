@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyzeComplexity } from "../src/complexity.js";
+import { analyzeComplexity } from "../src/crap/index.js";
 
 describe("analyzeComplexity", () => {
   it("gives a trivial function complexity 1 under all profiles", () => {

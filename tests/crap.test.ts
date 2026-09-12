@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { assembleRecord, crapScore } from "../src/crap.js";
-import type { FunctionComplexity } from "../src/complexity.js";
+import {
+  assembleRecord,
+  crapScore,
+  type FunctionComplexity,
+} from "../src/crap/index.js";
 
 describe("crapScore", () => {
   it("returns 1 for complexity 1 with full coverage", () => {

@@ -7,7 +7,10 @@
   },
   "scripts": {
     "test": "vitest run",
-    "build": "tsc -p tsconfig.build.json"
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "engines": {
     "node": ">=20"
@@ -17,7 +20,11 @@
   },
   "devDependencies": {
     "@types/node": "^20.19.43",
+    "@typescript-eslint/parser": "^8.70.0",
     "@vitest/coverage-v8": "^2.1.8",
+    "eslint": "^10.10.0",
+    "eslint-plugin-colocate": "github:gosukiwi/eslint-plugin-colocate",
+    "prettier": "^3.9.6",
     "vitest": "^2.1.8"
   }
 }

@@ -9,13 +9,16 @@ npm test                          # vitest run
 npx tsc --noEmit -p tsconfig.json # typecheck (src + tests)
 npm run build                     # tsc -p tsconfig.build.json -> dist/
 node dist/cli.js [src]            # run locally
+npm run lint                      # eslint with colocate plugin
+npm run format                    # prettier --write .
 ```
 
 ## Layout
 
-- `src/complexity.ts` — `analyzeComplexity(file, source, profile)`; profiles `strict` (default) / `balanced` / `permissive`.
+- `src/crap/` — the crap module behind its `index.ts` door. Outside code imports only the door, never internals.
+- `src/crap/complexity.ts` — `analyzeComplexity(file, source, profile)`; profiles `strict` (default) / `balanced` / `permissive`.
+- `src/crap/crap.ts` — `crapScore`, `assembleRecord`.
 - `src/lcov.ts` — `parseLcov`, `functionCoverage`, `matchLcovFile` (join policy lives here, nowhere else).
-- `src/crap.ts` — `crapScore`, `assembleRecord`.
 - `src/report.ts` — `renderJson`, `renderTable` (`!` flags CRAP > 15; threshold is a named constant).
 - `src/cli.ts` — `main(argv): Promise<number>`; flag spec table + `ParseError`.
 - `tests/*.test.ts`, fixtures under `tests/fixtures/`.

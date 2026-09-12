@@ -32,7 +32,10 @@ function isFunctionLike(node: ts.Node): node is FunctionLike {
   );
 }
 
-function propertyNameText(name: ts.PropertyName, sourceFile: ts.SourceFile): string {
+function propertyNameText(
+  name: ts.PropertyName,
+  sourceFile: ts.SourceFile,
+): string {
   if (
     ts.isIdentifier(name) ||
     ts.isStringLiteral(name) ||
@@ -113,11 +116,7 @@ interface ComplexityRule {
   test: (node: ts.Node) => boolean;
 }
 
-const ALL_PROFILES: ComplexityProfile[] = [
-  "strict",
-  "balanced",
-  "permissive",
-];
+const ALL_PROFILES: ComplexityProfile[] = ["strict", "balanced", "permissive"];
 const STRICT_ONLY: ComplexityProfile[] = ["strict"];
 const BALANCED_OR_STRICT: ComplexityProfile[] = ["balanced", "strict"];
 
@@ -166,8 +165,7 @@ function isOptionalTaggedTemplate(node: ts.Node): boolean {
 function isLogicalAssignment(node: ts.Node): boolean {
   return (
     ts.isBinaryExpression(node) &&
-    (node.operatorToken.kind ===
-      ts.SyntaxKind.AmpersandAmpersandEqualsToken ||
+    (node.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandEqualsToken ||
       node.operatorToken.kind === ts.SyntaxKind.BarBarEqualsToken ||
       node.operatorToken.kind === ts.SyntaxKind.QuestionQuestionEqualsToken)
   );
@@ -185,7 +183,10 @@ const COMPLEXITY_RULES: ComplexityRule[] = [
   { profiles: STRICT_ONLY, test: isLogicalAssignment },
 ];
 
-function countForFunction(fn: FunctionLike, profile: ComplexityProfile): number {
+function countForFunction(
+  fn: FunctionLike,
+  profile: ComplexityProfile,
+): number {
   let complexity = 1;
 
   function visit(node: ts.Node): void {

@@ -133,9 +133,13 @@ export const STATE_HOOKS: readonly string[] = [
 
 export const HOOK_WEIGHTS = { effect: 2, memo: 1, statePair: 1 } as const;
 
-const EFFECT_HOOK_SET: ReadonlySet<string> = new Set(EFFECT_HOOKS);
-const MEMO_HOOK_SET: ReadonlySet<string> = new Set(MEMO_HOOKS);
-const STATE_HOOK_SET: ReadonlySet<string> = new Set(STATE_HOOKS);
+type HookKind = "effect" | "memo" | "state";
+
+const HOOK_KIND_BY_NAME: ReadonlyMap<string, HookKind> = new Map([
+  ...EFFECT_HOOKS.map((name): [string, HookKind] => [name, "effect"]),
+  ...MEMO_HOOKS.map((name): [string, HookKind] => [name, "memo"]),
+  ...STATE_HOOKS.map((name): [string, HookKind] => [name, "state"]),
+]);
 const STATE_HOOK_PATTERN = /^use[A-Z]/;
 
 function hookCalleeName(expression: ts.Expression): string | undefined {
@@ -152,34 +156,19 @@ function hookCalleeName(expression: ts.Expression): string | undefined {
   return undefined;
 }
 
-function isEffectHookCall(node: ts.Node): boolean {
+function classifyHookCall(node: ts.Node): HookKind | undefined {
   if (!ts.isCallExpression(node)) {
-    return false;
-  }
-  const name = hookCalleeName(node.expression);
-  return name !== undefined && EFFECT_HOOK_SET.has(name);
-}
-
-function isMemoHookCall(node: ts.Node): boolean {
-  if (!ts.isCallExpression(node)) {
-    return false;
-  }
-  const name = hookCalleeName(node.expression);
-  return name !== undefined && MEMO_HOOK_SET.has(name);
-}
-
-function isStateHookCall(node: ts.Node): boolean {
-  if (!ts.isCallExpression(node)) {
-    return false;
+    return undefined;
   }
   const name = hookCalleeName(node.expression);
   if (name === undefined) {
-    return false;
+    return undefined;
   }
-  if (EFFECT_HOOK_SET.has(name) || MEMO_HOOK_SET.has(name)) {
-    return false;
+  const kind = HOOK_KIND_BY_NAME.get(name);
+  if (kind !== undefined) {
+    return kind;
   }
-  return STATE_HOOK_SET.has(name) || STATE_HOOK_PATTERN.test(name);
+  return STATE_HOOK_PATTERN.test(name) ? "state" : undefined;
 }
 
 const ALL_PROFILES: ComplexityProfile[] = ["strict", "balanced", "permissive"];
@@ -265,13 +254,12 @@ function countForFunction(
         complexity += 1;
       }
     }
-    if (isEffectHookCall(node)) {
+    const hookKind = classifyHookCall(node);
+    if (hookKind === "effect") {
       complexity += HOOK_WEIGHTS.effect;
-    }
-    if (isMemoHookCall(node)) {
+    } else if (hookKind === "memo") {
       complexity += HOOK_WEIGHTS.memo;
-    }
-    if (isStateHookCall(node)) {
+    } else if (hookKind === "state") {
       stateCalls += 1;
     }
     ts.forEachChild(node, visit);

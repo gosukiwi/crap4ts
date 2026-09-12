@@ -12,7 +12,11 @@ describe("cli symlink entry", () => {
   let tmpRoot: string | null = null;
 
   beforeAll(() => {
-    if (!fs.existsSync(entry)) {
+    const srcEntry = path.join(root, "src", "cli.ts");
+    const stale =
+      !fs.existsSync(entry) ||
+      fs.statSync(srcEntry).mtimeMs > fs.statSync(entry).mtimeMs;
+    if (stale) {
       execSync("npm run build", { cwd: root, stdio: "inherit" });
     }
   });

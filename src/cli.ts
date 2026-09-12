@@ -253,7 +253,11 @@ export async function main(argv: string[]): Promise<number> {
   }
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+const entryScript = process.argv[1];
+if (
+  entryScript !== undefined &&
+  import.meta.url === pathToFileURL(fs.realpathSync(entryScript)).href
+) {
   main(process.argv.slice(2)).then(
     (code) => {
       process.exitCode = code;

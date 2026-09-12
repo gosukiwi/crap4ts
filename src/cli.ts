@@ -153,8 +153,14 @@ function collectTsFiles(dir: string): string[] {
       out.push(...collectTsFiles(full));
     } else if (
       entry.isFile() &&
-      full.endsWith(".ts") &&
-      !full.endsWith(".d.ts")
+      (full.endsWith(".ts") ||
+        full.endsWith(".tsx") ||
+        full.endsWith(".mts") ||
+        full.endsWith(".cts")) &&
+      !full.endsWith(".d.ts") &&
+      !full.endsWith(".d.tsx") &&
+      !full.endsWith(".d.mts") &&
+      !full.endsWith(".d.cts")
     ) {
       out.push(full);
     }

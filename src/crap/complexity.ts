@@ -215,6 +215,7 @@ export function analyzeComplexity(
     sourceText,
     ts.ScriptTarget.Latest,
     true,
+    filePath.endsWith(".tsx") ? ts.ScriptKind.TSX : undefined,
   );
   const results: FunctionComplexity[] = [];
 

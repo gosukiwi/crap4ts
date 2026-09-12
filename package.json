@@ -1,5 +1,5 @@
 {
-  "name": "crap4ts",
+  "name": "@gosukiwi/crap4ts",
   "version": "0.1.0",
   "description": "Finds the riskiest code in your TypeScript project: code that is hard to follow and poorly tested.",
   "license": "MIT",

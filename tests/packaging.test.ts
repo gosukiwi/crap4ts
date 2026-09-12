@@ -21,7 +21,7 @@ describe("packaging", () => {
   });
 
   it("has a publishable name, semver version, and bin target", () => {
-    expect(manifest.name).toBe("crap4ts");
+    expect(manifest.name).toBe("@gosukiwi/crap4ts");
     expect(manifest.version).toMatch(/^\d+\.\d+\.\d+(-[\w.]+)?$/);
     expect(manifest.bin?.crap4ts).toBe("dist/cli.js");
     expect(fs.existsSync(path.join(root, manifest.bin?.crap4ts ?? ""))).toBe(

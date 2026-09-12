@@ -188,6 +188,8 @@ describe("cli", () => {
     fs.writeFileSync(path.join(tmpRoot, "src", "keep.ts"), "export function keep() { return 3; }\n");
     fs.writeFileSync(path.join(tmpRoot, "src", "skip.jsx"), "export function skipped() { return 4; }\n");
     fs.writeFileSync(path.join(tmpRoot, "src", "types.d.tsx"), "export function declared() { return 5; }\n");
+    fs.writeFileSync(path.join(tmpRoot, "src", "extra.d.mts"), "export function extraDecl() { return 6; }");
+    fs.writeFileSync(path.join(tmpRoot, "src", "more.d.cts"), "export function moreDecl() { return 7; }");
     process.chdir(tmpRoot);
     const code = await main(["src", "--format", "json"]);
     expect(code).toBe(0);
@@ -199,6 +201,8 @@ describe("cli", () => {
     expect(names).toContain("keep");
     expect(names).not.toContain("skipped");
     expect(names).not.toContain("declared");
+    expect(names).not.toContain("extraDecl");
+    expect(names).not.toContain("moreDecl");
     const widget = records.find((r: { name: string }) => r.name === "Widget");
     expect(widget.file).toBe("src/Component.tsx");
     expect(widget.coverage).toBeNull();
@@ -214,12 +218,17 @@ describe("cli", () => {
     fs.writeFileSync(path.join(tmpRoot, "src", "keep.ts"), "export function keep() { return 3; }\n");
     fs.writeFileSync(path.join(tmpRoot, "src", "skip.jsx"), "export function skipped() { return 4; }\n");
     fs.writeFileSync(path.join(tmpRoot, "src", "types.d.tsx"), "export function declared() { return 5; }\n");
+    fs.writeFileSync(path.join(tmpRoot, "src", "extra.d.mts"), "export function extraDecl() { return 6; }");
+    fs.writeFileSync(path.join(tmpRoot, "src", "more.d.cts"), "export function moreDecl() { return 7; }");
     fs.mkdirSync(path.join(tmpRoot, "coverage"), { recursive: true });
     fs.writeFileSync(path.join(tmpRoot, "coverage", "lcov.info"), "TN:\nSF:src/Component.tsx\nDA:1,1\nDA:2,1\nDA:3,1\nDA:4,1\nDA:5,1\nDA:6,1\nend_of_record\n");
     process.chdir(tmpRoot);
     const code = await main(["src", "--format", "json"]);
     expect(code).toBe(0);
     const records = JSON.parse(stdout());
+    const names = records.map((r: { name: string }) => r.name);
+    expect(names).not.toContain("extraDecl");
+    expect(names).not.toContain("moreDecl");
     const widget = records.find((r: { name: string }) => r.name === "Widget");
     expect(widget.coverage).toBe(1);
     expect(widget.crap).toBe(crapScore(widget.complexity, 1));

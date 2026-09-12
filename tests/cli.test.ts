@@ -179,6 +179,55 @@ describe("cli", () => {
     expect(simple.crap).toBe(crapScore(simple.complexity, 1));
   });
 
+  it("walk collects ts tsx mts cts and skips jsx and d files", async () => {
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "crap4ts-"));
+    fs.mkdirSync(path.join(tmpRoot, "src"), { recursive: true });
+    fs.writeFileSync(path.join(tmpRoot, "src", "Component.tsx"), "export const Widget = ({ show }: { show: boolean }) => {\n  if (!show) {\n    return null;\n  }\n  return show ? <div>yes</div> : <div>no</div>;\n};\n");
+    fs.writeFileSync(path.join(tmpRoot, "src", "util.mts"), "export function util() { return 1; }\n");
+    fs.writeFileSync(path.join(tmpRoot, "src", "legacy.cts"), "export function legacy() { return 2; }\n");
+    fs.writeFileSync(path.join(tmpRoot, "src", "keep.ts"), "export function keep() { return 3; }\n");
+    fs.writeFileSync(path.join(tmpRoot, "src", "skip.jsx"), "export function skipped() { return 4; }\n");
+    fs.writeFileSync(path.join(tmpRoot, "src", "types.d.tsx"), "export function declared() { return 5; }\n");
+    process.chdir(tmpRoot);
+    const code = await main(["src", "--format", "json"]);
+    expect(code).toBe(0);
+    const records = JSON.parse(stdout());
+    const names = records.map((r: { name: string }) => r.name);
+    expect(names).toContain("Widget");
+    expect(names).toContain("util");
+    expect(names).toContain("legacy");
+    expect(names).toContain("keep");
+    expect(names).not.toContain("skipped");
+    expect(names).not.toContain("declared");
+    const widget = records.find((r: { name: string }) => r.name === "Widget");
+    expect(widget.file).toBe("src/Component.tsx");
+    expect(widget.coverage).toBeNull();
+    expect(widget.crap).toBeNull();
+  });
+
+  it("join coverage for tsx file via default lcov path", async () => {
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "crap4ts-"));
+    fs.mkdirSync(path.join(tmpRoot, "src"), { recursive: true });
+    fs.writeFileSync(path.join(tmpRoot, "src", "Component.tsx"), "export const Widget = ({ show }: { show: boolean }) => {\n  if (!show) {\n    return null;\n  }\n  return show ? <div>yes</div> : <div>no</div>;\n};\n");
+    fs.writeFileSync(path.join(tmpRoot, "src", "util.mts"), "export function util() { return 1; }\n");
+    fs.writeFileSync(path.join(tmpRoot, "src", "legacy.cts"), "export function legacy() { return 2; }\n");
+    fs.writeFileSync(path.join(tmpRoot, "src", "keep.ts"), "export function keep() { return 3; }\n");
+    fs.writeFileSync(path.join(tmpRoot, "src", "skip.jsx"), "export function skipped() { return 4; }\n");
+    fs.writeFileSync(path.join(tmpRoot, "src", "types.d.tsx"), "export function declared() { return 5; }\n");
+    fs.mkdirSync(path.join(tmpRoot, "coverage"), { recursive: true });
+    fs.writeFileSync(path.join(tmpRoot, "coverage", "lcov.info"), "TN:\nSF:src/Component.tsx\nDA:1,1\nDA:2,1\nDA:3,1\nDA:4,1\nDA:5,1\nDA:6,1\nend_of_record\n");
+    process.chdir(tmpRoot);
+    const code = await main(["src", "--format", "json"]);
+    expect(code).toBe(0);
+    const records = JSON.parse(stdout());
+    const widget = records.find((r: { name: string }) => r.name === "Widget");
+    expect(widget.coverage).toBe(1);
+    expect(widget.crap).toBe(crapScore(widget.complexity, 1));
+    const util = records.find((r: { name: string }) => r.name === "util");
+    expect(util.coverage).toBeNull();
+    expect(util.crap).toBeNull();
+  });
+
   it("--max-crap with a coverage file that matches nothing returns 2", async () => {
     process.chdir(projA);
     const raw = fs.readFileSync(

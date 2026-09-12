@@ -76,68 +76,103 @@ function resolveName(node: FunctionLike, sourceFile: ts.SourceFile): string {
   return "(anonymous)";
 }
 
+// questionDotToken lives on the individual optional-chain node interfaces,
+// not on ts.Node, so read it through one guarded cast here.
+function hasQuestionDot(node: ts.Node): boolean {
+  return (
+    (node as { questionDotToken?: ts.QuestionDotToken }).questionDotToken !==
+    undefined
+  );
+}
+
+interface ComplexityRule {
+  profiles: ComplexityProfile[];
+  test: (node: ts.Node) => boolean;
+}
+
+const ALL_PROFILES: ComplexityProfile[] = [
+  "strict",
+  "balanced",
+  "permissive",
+];
+const STRICT_ONLY: ComplexityProfile[] = ["strict"];
+const BALANCED_OR_STRICT: ComplexityProfile[] = ["balanced", "strict"];
+
+function isElseBranch(node: ts.Node): boolean {
+  return (
+    ts.isIfStatement(node) &&
+    node.elseStatement !== undefined &&
+    !ts.isIfStatement(node.elseStatement)
+  );
+}
+
+function isLoopOrBranch(node: ts.Node): boolean {
+  return (
+    ts.isForStatement(node) ||
+    ts.isForInStatement(node) ||
+    ts.isForOfStatement(node) ||
+    ts.isWhileStatement(node) ||
+    ts.isDoStatement(node) ||
+    ts.isCaseClause(node) ||
+    ts.isCatchClause(node)
+  );
+}
+
+function isLogicalOperator(node: ts.Node): boolean {
+  return (
+    ts.isBinaryExpression(node) &&
+    (node.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken ||
+      node.operatorToken.kind === ts.SyntaxKind.BarBarToken ||
+      node.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken)
+  );
+}
+
+function isOptionalChain(node: ts.Node): boolean {
+  return (
+    (ts.isPropertyAccessExpression(node) ||
+      ts.isCallExpression(node) ||
+      ts.isElementAccessExpression(node)) &&
+    hasQuestionDot(node)
+  );
+}
+
+function isOptionalTaggedTemplate(node: ts.Node): boolean {
+  return ts.isTaggedTemplateExpression(node) && hasQuestionDot(node);
+}
+
+function isLogicalAssignment(node: ts.Node): boolean {
+  return (
+    ts.isBinaryExpression(node) &&
+    (node.operatorToken.kind ===
+      ts.SyntaxKind.AmpersandAmpersandEqualsToken ||
+      node.operatorToken.kind === ts.SyntaxKind.BarBarEqualsToken ||
+      node.operatorToken.kind === ts.SyntaxKind.QuestionQuestionEqualsToken)
+  );
+}
+
+// Each syntactic concept appears once; the profile axis is data.
+const COMPLEXITY_RULES: ComplexityRule[] = [
+  { profiles: ALL_PROFILES, test: ts.isIfStatement },
+  { profiles: STRICT_ONLY, test: isElseBranch },
+  { profiles: ALL_PROFILES, test: isLoopOrBranch },
+  { profiles: BALANCED_OR_STRICT, test: isLogicalOperator },
+  { profiles: BALANCED_OR_STRICT, test: ts.isConditionalExpression },
+  { profiles: STRICT_ONLY, test: isOptionalChain },
+  { profiles: STRICT_ONLY, test: isOptionalTaggedTemplate },
+  { profiles: STRICT_ONLY, test: isLogicalAssignment },
+];
+
 function countForFunction(fn: FunctionLike, profile: ComplexityProfile): number {
-  const balancedOrStrict = profile === "balanced" || profile === "strict";
   let complexity = 1;
 
   function visit(node: ts.Node): void {
     if (node !== fn && isFunctionLike(node)) {
       return;
     }
-    if (ts.isIfStatement(node)) {
-      complexity += 1;
-      if (
-        profile === "strict" &&
-        node.elseStatement !== undefined &&
-        !ts.isIfStatement(node.elseStatement)
-      ) {
+    for (const rule of COMPLEXITY_RULES) {
+      if (rule.profiles.includes(profile) && rule.test(node)) {
         complexity += 1;
       }
-    } else if (
-      ts.isForStatement(node) ||
-      ts.isForInStatement(node) ||
-      ts.isForOfStatement(node) ||
-      ts.isWhileStatement(node) ||
-      ts.isDoStatement(node) ||
-      ts.isCaseClause(node) ||
-      ts.isCatchClause(node)
-    ) {
-      complexity += 1;
-    } else if (
-      balancedOrStrict &&
-      ts.isBinaryExpression(node) &&
-      (node.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken ||
-        node.operatorToken.kind === ts.SyntaxKind.BarBarToken ||
-        node.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken)
-    ) {
-      complexity += 1;
-    } else if (balancedOrStrict && ts.isConditionalExpression(node)) {
-      complexity += 1;
-    } else if (
-      profile === "strict" &&
-      (ts.isPropertyAccessExpression(node) ||
-        ts.isCallExpression(node) ||
-        ts.isElementAccessExpression(node)) &&
-      node.questionDotToken !== undefined
-    ) {
-      complexity += 1;
-    } else if (
-      profile === "strict" &&
-      ts.isTaggedTemplateExpression(node) &&
-      "questionDotToken" in node &&
-      node.questionDotToken !== undefined
-    ) {
-      complexity += 1;
-    } else if (
-      profile === "strict" &&
-      ts.isBinaryExpression(node) &&
-      (node.operatorToken.kind ===
-        ts.SyntaxKind.AmpersandAmpersandEqualsToken ||
-        node.operatorToken.kind === ts.SyntaxKind.BarBarEqualsToken ||
-        node.operatorToken.kind ===
-          ts.SyntaxKind.QuestionQuestionEqualsToken)
-    ) {
-      complexity += 1;
     }
     ts.forEachChild(node, visit);
   }

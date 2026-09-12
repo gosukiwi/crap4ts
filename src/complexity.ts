@@ -73,6 +73,29 @@ function resolveName(node: FunctionLike, sourceFile: ts.SourceFile): string {
   ) {
     return propertyNameText(parent.name, sourceFile);
   }
+  if (
+    parent !== undefined &&
+    ts.isPropertyDeclaration(parent) &&
+    parent.initializer === node
+  ) {
+    return propertyNameText(parent.name, sourceFile);
+  }
+  if (
+    parent !== undefined &&
+    ts.isBinaryExpression(parent) &&
+    parent.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+    parent.right === node
+  ) {
+    if (ts.isIdentifier(parent.left)) {
+      return parent.left.text;
+    }
+    if (
+      ts.isPropertyAccessExpression(parent.left) &&
+      parent.left.name !== undefined
+    ) {
+      return parent.left.getText(sourceFile);
+    }
+  }
   return "(anonymous)";
 }
 

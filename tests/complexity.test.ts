@@ -215,6 +215,45 @@ function e(a: boolean, b: boolean) {
     expect(res[0]).toMatchObject({ name: "o.h", complexity: 1 });
   });
 
+  describe("TSX components", () => {
+    const SRC = `export const List = ({ items, show }: { items: string[]; show: boolean }) => {
+  if (!show) {
+    return null;
+  }
+  const extra = { className: "x" };
+  return (
+    <>
+      <ul>
+        {items.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+        {show && <li {...extra}>extra</li>}
+        {show ? <li>yes</li> : <li>no</li>}
+      </ul>
+    </>
+  );
+};`;
+    it("counts TSX branches without JSX noise", () => {
+      for (const profile of ["permissive", "balanced", "strict"] as const) {
+        const result = analyzeComplexity("src/List.tsx", SRC, profile);
+        expect(result).toHaveLength(2);
+      }
+      const byName = (profile: "permissive" | "balanced" | "strict") => {
+        const result = analyzeComplexity("src/List.tsx", SRC, profile);
+        return Object.fromEntries(result.map((r) => [r.name, r.complexity]));
+      };
+      expect(byName("permissive")["List"]).toBe(2);
+      expect(byName("balanced")["List"]).toBe(4);
+      expect(byName("strict")["List"]).toBe(4);
+      for (const profile of ["permissive", "balanced", "strict"] as const) {
+        const result = analyzeComplexity("src/List.tsx", SRC, profile);
+        const anon = result.find((r) => r.name === "(anonymous)");
+        expect(anon).toBeDefined();
+        expect(anon!.complexity).toBe(1);
+      }
+    });
+  });
+
   it("reports 1-based line/col and inclusive endLine of the body", () => {
     const src = `function f(x: number): number {
   if (x > 0) {

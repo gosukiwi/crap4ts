@@ -347,6 +347,112 @@ function e(a: boolean, b: boolean) {
     });
   });
 
+  describe("state hooks", () => {
+    it("adds 0 for a single useState call under all profiles", () => {
+      const src = `function C() {
+  useState(0);
+  return 1;
+}`;
+      for (const profile of ["permissive", "balanced", "strict"] as const) {
+        expect(analyzeComplexity("a.ts", src, profile)[0].complexity).toBe(1);
+      }
+    });
+
+    it("adds 1 per pair of useState calls", () => {
+      const two = `function C() {
+  useState(0);
+  useState(1);
+  return 1;
+}`;
+      for (const profile of ["permissive", "balanced", "strict"] as const) {
+        expect(analyzeComplexity("a.ts", two, profile)[0].complexity).toBe(2);
+      }
+    });
+
+    it("rounds pairing down: 3 calls add 1 and 10 calls add 5", () => {
+      const three = `function C() {
+  useState(0);
+  useState(1);
+  useState(2);
+  return 1;
+}`;
+      for (const profile of ["permissive", "balanced", "strict"] as const) {
+        expect(analyzeComplexity("a.ts", three, profile)[0].complexity).toBe(2);
+      }
+      const tenCalls = Array.from(
+        { length: 10 },
+        (_, i) => `  useState(${i});`,
+      ).join("\n");
+      const ten = `function C() {\n${tenCalls}\n  return 1;\n}`;
+      for (const profile of ["permissive", "balanced", "strict"] as const) {
+        expect(analyzeComplexity("a.ts", ten, profile)[0].complexity).toBe(6);
+      }
+    });
+
+    it("counts every STATE_HOOKS member in the state tier", () => {
+      const src = `function C() {
+  useReducer((s: number) => s, 0);
+  useRef(0);
+  return 1;
+}`;
+      for (const profile of ["permissive", "balanced", "strict"] as const) {
+        expect(analyzeComplexity("a.ts", src, profile)[0].complexity).toBe(2);
+      }
+      const ctx = `function C() {
+  useContext(Ctx);
+  useState(0);
+  return 1;
+}`;
+      for (const profile of ["permissive", "balanced", "strict"] as const) {
+        expect(analyzeComplexity("a.ts", ctx, profile)[0].complexity).toBe(2);
+      }
+    });
+
+    it("counts custom hooks and useId in the state tier", () => {
+      const src = `function C() {
+  useFetch("/a");
+  useId();
+  return 1;
+}`;
+      for (const profile of ["permissive", "balanced", "strict"] as const) {
+        expect(analyzeComplexity("a.ts", src, profile)[0].complexity).toBe(2);
+      }
+    });
+
+    it("counts React.-prefixed state calls", () => {
+      const src = `function C() {
+  React.useState(0);
+  React.useState(1);
+  return 1;
+}`;
+      for (const profile of ["permissive", "balanced", "strict"] as const) {
+        expect(analyzeComplexity("a.ts", src, profile)[0].complexity).toBe(2);
+      }
+    });
+
+    it("keeps pairing within the state tier when mixing tiers", () => {
+      const src = `function C() {
+  useState(0);
+  useEffect(() => {}, []);
+  return 1;
+}`;
+      for (const profile of ["permissive", "balanced", "strict"] as const) {
+        expect(analyzeComplexity("a.ts", src, profile)[0].complexity).toBe(3);
+      }
+    });
+
+    it("ignores the bare React 19 use API", () => {
+      const src = `function C() {
+  use(promise);
+  use(promise2);
+  return 1;
+}`;
+      for (const profile of ["permissive", "balanced", "strict"] as const) {
+        expect(analyzeComplexity("a.ts", src, profile)[0].complexity).toBe(1);
+      }
+    });
+  });
+
   it("reports 1-based line/col and inclusive endLine of the body", () => {
     const src = `function f(x: number): number {
   if (x > 0) {

@@ -135,6 +135,8 @@ export const HOOK_WEIGHTS = { effect: 2, memo: 1, statePair: 1 } as const;
 
 const EFFECT_HOOK_SET: ReadonlySet<string> = new Set(EFFECT_HOOKS);
 const MEMO_HOOK_SET: ReadonlySet<string> = new Set(MEMO_HOOKS);
+const STATE_HOOK_SET: ReadonlySet<string> = new Set(STATE_HOOKS);
+const STATE_HOOK_PATTERN = /^use[A-Z]/;
 
 function hookCalleeName(expression: ts.Expression): string | undefined {
   if (ts.isIdentifier(expression)) {
@@ -160,6 +162,20 @@ function isMemoHookCall(node: ts.Node): boolean {
   }
   const name = hookCalleeName(node.expression);
   return name !== undefined && MEMO_HOOK_SET.has(name);
+}
+
+function isStateHookCall(node: ts.Node): boolean {
+  if (!ts.isCallExpression(node)) {
+    return false;
+  }
+  const name = hookCalleeName(node.expression);
+  if (name === undefined) {
+    return false;
+  }
+  if (EFFECT_HOOK_SET.has(name) || MEMO_HOOK_SET.has(name)) {
+    return false;
+  }
+  return STATE_HOOK_SET.has(name) || STATE_HOOK_PATTERN.test(name);
 }
 
 const ALL_PROFILES: ComplexityProfile[] = ["strict", "balanced", "permissive"];
@@ -234,6 +250,7 @@ function countForFunction(
   profile: ComplexityProfile,
 ): number {
   let complexity = 1;
+  let stateCalls = 0;
 
   function visit(node: ts.Node): void {
     if (node !== fn && isFunctionLike(node)) {
@@ -250,10 +267,14 @@ function countForFunction(
     if (isMemoHookCall(node)) {
       complexity += HOOK_WEIGHTS.memo;
     }
+    if (isStateHookCall(node)) {
+      stateCalls += 1;
+    }
     ts.forEachChild(node, visit);
   }
 
   ts.forEachChild(fn, visit);
+  complexity += Math.floor(stateCalls / 2) * HOOK_WEIGHTS.statePair;
   return complexity;
 }
 

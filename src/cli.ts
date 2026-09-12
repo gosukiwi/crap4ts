@@ -228,14 +228,20 @@ function buildRecords(
   return records;
 }
 
-function checkMaxCrapGate(
+function requireCoverageForGate(
+  records: CrapRecord[],
+  maxCrap: number | null,
+): void {
+  const hasCoverage = records.some((r) => r.coverage !== null);
+  if (maxCrap !== null && !hasCoverage) {
+    fail("--max-crap requires coverage data");
+  }
+}
+
+function hasCrapBreach(
   records: CrapRecord[],
   maxCrap: number | null,
 ): boolean {
-  const hasCoverage = records.some((r) => r.coverage !== null);
-  if (maxCrap !== null && !hasCoverage) {
-    return fail("--max-crap requires coverage data");
-  }
   return (
     maxCrap !== null && records.some((r) => r.crap !== null && r.crap > maxCrap)
   );
@@ -248,7 +254,8 @@ async function run(argv: string[]): Promise<number> {
   const srcDir = resolveSrcDir(cwd, options.src);
   const lcovFiles = loadCoverageData(cwd, options.coveragePath);
   const records = buildRecords(cwd, srcDir, options.profile, lcovFiles);
-  const breach = checkMaxCrapGate(records, options.maxCrap);
+  requireCoverageForGate(records, options.maxCrap);
+  const breach = hasCrapBreach(records, options.maxCrap);
 
   if (options.format === "json") {
     console.log(renderJson(records));

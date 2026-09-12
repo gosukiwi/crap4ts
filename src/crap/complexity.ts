@@ -59,29 +59,14 @@ function resolveVariableName(node: FunctionLike): string | null {
   return null;
 }
 
-function resolvePropertyAssignmentName(
+function resolvePropertyName(
   node: FunctionLike,
   sourceFile: ts.SourceFile,
 ): string | null {
   const parent = node.parent;
   if (
     parent !== undefined &&
-    ts.isPropertyAssignment(parent) &&
-    parent.initializer === node
-  ) {
-    return propertyNameText(parent.name, sourceFile);
-  }
-  return null;
-}
-
-function resolvePropertyDeclarationName(
-  node: FunctionLike,
-  sourceFile: ts.SourceFile,
-): string | null {
-  const parent = node.parent;
-  if (
-    parent !== undefined &&
-    ts.isPropertyDeclaration(parent) &&
+    (ts.isPropertyAssignment(parent) || ts.isPropertyDeclaration(parent)) &&
     parent.initializer === node
   ) {
     return propertyNameText(parent.name, sourceFile);
@@ -130,8 +115,7 @@ function resolveName(node: FunctionLike, sourceFile: ts.SourceFile): string {
   }
   return (
     resolveVariableName(node) ??
-    resolvePropertyAssignmentName(node, sourceFile) ??
-    resolvePropertyDeclarationName(node, sourceFile) ??
+    resolvePropertyName(node, sourceFile) ??
     resolveAssignmentName(node, sourceFile) ??
     "(anonymous)"
   );

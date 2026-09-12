@@ -142,7 +142,11 @@ function hookCalleeName(expression: ts.Expression): string | undefined {
   if (ts.isIdentifier(expression)) {
     return expression.text;
   }
-  if (ts.isPropertyAccessExpression(expression)) {
+  if (
+    ts.isPropertyAccessExpression(expression) &&
+    ts.isIdentifier(expression.expression) &&
+    expression.expression.text === "React"
+  ) {
     return expression.name.text;
   }
   return undefined;

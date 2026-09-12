@@ -261,7 +261,20 @@ function e(a: boolean, b: boolean) {
   return 1;
 }`;
       for (const profile of ["permissive", "balanced", "strict"] as const) {
-        expect(analyzeComplexity("a.ts", src, profile)[0].complexity).toBe(3);
+        const result = analyzeComplexity("a.ts", src, profile);
+        expect(result).toHaveLength(2);
+        expect(result[0].complexity).toBe(3);
+      }
+    });
+
+    it("ignores effect calls on non-React receivers", () => {
+      const src = `function C() {
+  foo.useEffect(() => {}, []);
+  return 1;
+}`;
+      for (const profile of ["permissive", "balanced", "strict"] as const) {
+        const result = analyzeComplexity("a.ts", src, profile);
+        expect(result[0].complexity).toBe(1);
       }
     });
 
@@ -307,8 +320,21 @@ function e(a: boolean, b: boolean) {
   return 1;
 }`;
         for (const profile of ["permissive", "balanced", "strict"] as const) {
-          expect(analyzeComplexity("a.ts", src, profile)[0].complexity).toBe(2);
+          const result = analyzeComplexity("a.ts", src, profile);
+          expect(result).toHaveLength(2);
+          expect(result[0].complexity).toBe(2);
         }
+      }
+    });
+
+    it("ignores memo calls on non-React receivers", () => {
+      const src = `function C() {
+  store.useMemo(() => 1, []);
+  return 1;
+}`;
+      for (const profile of ["permissive", "balanced", "strict"] as const) {
+        const result = analyzeComplexity("a.ts", src, profile);
+        expect(result[0].complexity).toBe(1);
       }
     });
 
@@ -365,7 +391,21 @@ function e(a: boolean, b: boolean) {
   return 1;
 }`;
       for (const profile of ["permissive", "balanced", "strict"] as const) {
-        expect(analyzeComplexity("a.ts", two, profile)[0].complexity).toBe(2);
+        const result = analyzeComplexity("a.ts", two, profile);
+        expect(result).toHaveLength(1);
+        expect(result[0].complexity).toBe(2);
+      }
+    });
+
+    it("ignores state calls on non-React receivers", () => {
+      const two = `function C() {
+  db.useState(0);
+  db.useState(1);
+  return 1;
+}`;
+      for (const profile of ["permissive", "balanced", "strict"] as const) {
+        const result = analyzeComplexity("a.ts", two, profile);
+        expect(result[0].complexity).toBe(1);
       }
     });
 
@@ -463,6 +503,7 @@ function e(a: boolean, b: boolean) {
 }`;
       for (const profile of ["permissive", "balanced", "strict"] as const) {
         const result = analyzeComplexity("a.ts", src, profile);
+        expect(result).toHaveLength(3);
         const byName = Object.fromEntries(
           result.map((r) => [r.name, r.complexity]),
         );

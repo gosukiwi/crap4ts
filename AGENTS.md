@@ -11,6 +11,8 @@ npm run build                     # tsc -p tsconfig.build.json -> dist/
 npm run crap                      # lcov coverage + crap4ts src --max-crap 15, non-zero exit when any function > 15
 ```
 
+Verification is all six gates green before finishing: `npm test`, `npx tsc --noEmit`, `npm run lint`, `npm run format:check`, `npm run build`, `npm run crap`.
+
 No code comments. Only humans add comments.
 
 ## Read when relevant

@@ -215,6 +215,20 @@ function e(a: boolean, b: boolean) {
     expect(res[0]).toMatchObject({ name: "o.h", complexity: 1 });
   });
 
+  it("names a function in an object literal from its property assignment", () => {
+    const src = `const o = { h: () => { return 1; } };`;
+    const res = analyzeComplexity("a.ts", src, "permissive");
+    expect(res).toHaveLength(1);
+    expect(res[0]).toMatchObject({ name: "h", complexity: 1 });
+  });
+
+  it("names an arrow assigned to a bare identifier via =", () => {
+    const src = `f = () => { return 1; };`;
+    const res = analyzeComplexity("a.ts", src, "permissive");
+    expect(res).toHaveLength(1);
+    expect(res[0]).toMatchObject({ name: "f", complexity: 1 });
+  });
+
   describe("TSX components", () => {
     const SRC = `export const List = ({ items, show }: { items: string[]; show: boolean }) => {
   if (!show) {

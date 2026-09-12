@@ -254,6 +254,51 @@ function e(a: boolean, b: boolean) {
     });
   });
 
+  describe("effect hooks", () => {
+    it("adds 2 per bare useEffect call under all profiles", () => {
+      const src = `function C() {
+  useEffect(() => {}, []);
+  return 1;
+}`;
+      for (const profile of ["permissive", "balanced", "strict"] as const) {
+        expect(analyzeComplexity("a.ts", src, profile)[0].complexity).toBe(3);
+      }
+    });
+
+    it("adds 2 for React.-prefixed effect calls", () => {
+      const src = `function C() {
+  React.useEffect(() => {}, []);
+  return 1;
+}`;
+      for (const profile of ["permissive", "balanced", "strict"] as const) {
+        expect(analyzeComplexity("a.ts", src, profile)[0].complexity).toBe(3);
+      }
+    });
+
+    it("adds 2 for useLayoutEffect and useInsertionEffect", () => {
+      for (const hook of ["useLayoutEffect", "useInsertionEffect"]) {
+        const src = `function C() {
+  ${hook}(() => {}, []);
+  return 1;
+}`;
+        for (const profile of ["permissive", "balanced", "strict"] as const) {
+          expect(analyzeComplexity("a.ts", src, profile)[0].complexity).toBe(3);
+        }
+      }
+    });
+
+    it("sums multiple effect calls", () => {
+      const src = `function C() {
+  useEffect(() => {}, []);
+  useLayoutEffect(() => {}, []);
+  return 1;
+}`;
+      for (const profile of ["permissive", "balanced", "strict"] as const) {
+        expect(analyzeComplexity("a.ts", src, profile)[0].complexity).toBe(5);
+      }
+    });
+  });
+
   it("reports 1-based line/col and inclusive endLine of the body", () => {
     const src = `function f(x: number): number {
   if (x > 0) {

@@ -116,6 +116,43 @@ interface ComplexityRule {
   test: (node: ts.Node) => boolean;
 }
 
+export const EFFECT_HOOKS: readonly string[] = [
+  "useEffect",
+  "useLayoutEffect",
+  "useInsertionEffect",
+];
+
+export const MEMO_HOOKS: readonly string[] = ["useMemo", "useCallback"];
+
+export const STATE_HOOKS: readonly string[] = [
+  "useState",
+  "useReducer",
+  "useRef",
+  "useContext",
+];
+
+export const HOOK_WEIGHTS = { effect: 2, memo: 1, statePair: 1 } as const;
+
+const EFFECT_HOOK_SET: ReadonlySet<string> = new Set(EFFECT_HOOKS);
+
+function hookCalleeName(expression: ts.Expression): string | undefined {
+  if (ts.isIdentifier(expression)) {
+    return expression.text;
+  }
+  if (ts.isPropertyAccessExpression(expression)) {
+    return expression.name.text;
+  }
+  return undefined;
+}
+
+function isEffectHookCall(node: ts.Node): boolean {
+  if (!ts.isCallExpression(node)) {
+    return false;
+  }
+  const name = hookCalleeName(node.expression);
+  return name !== undefined && EFFECT_HOOK_SET.has(name);
+}
+
 const ALL_PROFILES: ComplexityProfile[] = ["strict", "balanced", "permissive"];
 const STRICT_ONLY: ComplexityProfile[] = ["strict"];
 const BALANCED_OR_STRICT: ComplexityProfile[] = ["balanced", "strict"];
@@ -197,6 +234,9 @@ function countForFunction(
       if (rule.profiles.includes(profile) && rule.test(node)) {
         complexity += 1;
       }
+    }
+    if (isEffectHookCall(node)) {
+      complexity += HOOK_WEIGHTS.effect;
     }
     ts.forEachChild(node, visit);
   }

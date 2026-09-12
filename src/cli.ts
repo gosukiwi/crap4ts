@@ -238,10 +238,7 @@ function requireCoverageForGate(
   }
 }
 
-function hasCrapBreach(
-  records: CrapRecord[],
-  maxCrap: number | null,
-): boolean {
+function hasCrapBreach(records: CrapRecord[], maxCrap: number | null): boolean {
   return (
     maxCrap !== null && records.some((r) => r.crap !== null && r.crap > maxCrap)
   );

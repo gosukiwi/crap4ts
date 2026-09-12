@@ -123,6 +123,13 @@ function countForFunction(fn: FunctionLike, profile: ComplexityProfile): number 
       complexity += 1;
     } else if (
       profile === "strict" &&
+      ts.isTaggedTemplateExpression(node) &&
+      "questionDotToken" in node &&
+      node.questionDotToken !== undefined
+    ) {
+      complexity += 1;
+    } else if (
+      profile === "strict" &&
       ts.isBinaryExpression(node) &&
       (node.operatorToken.kind ===
         ts.SyntaxKind.AmpersandAmpersandEqualsToken ||

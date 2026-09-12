@@ -137,6 +137,47 @@ describe("cli", () => {
     expect(code).toBe(1);
   });
 
+  it("joins lcov SF from a different checkout root via segment suffix", async () => {
+    process.chdir(projA);
+    const raw = fs.readFileSync(
+      path.join(projA, "coverage", "lcov.info"),
+      "utf8",
+    );
+    const tmp = path.join(
+      fs.mkdtempSync(path.join(os.tmpdir(), "crap4ts-")),
+      "lcov.info",
+    );
+    fs.writeFileSync(
+      tmp,
+      raw.replace("SF:src/a.ts", "SF:/builds/runner/other-root/src/a.ts"),
+    );
+    const code = await main(["--coverage", tmp, "--format", "json"]);
+    expect(code).toBe(0);
+    const records = JSON.parse(stdout());
+    const simple = records.find((r: { name: string }) => r.name === "simple");
+    expect(simple.coverage).toBe(1);
+    expect(simple.crap).toBe(crapScore(simple.complexity, 1));
+  });
+
+  it("joins lcov SF with a partial-relative basename via segment suffix", async () => {
+    process.chdir(projA);
+    const raw = fs.readFileSync(
+      path.join(projA, "coverage", "lcov.info"),
+      "utf8",
+    );
+    const tmp = path.join(
+      fs.mkdtempSync(path.join(os.tmpdir(), "crap4ts-")),
+      "lcov.info",
+    );
+    fs.writeFileSync(tmp, raw.replace("SF:src/a.ts", "SF:a.ts"));
+    const code = await main(["--coverage", tmp, "--format", "json"]);
+    expect(code).toBe(0);
+    const records = JSON.parse(stdout());
+    const simple = records.find((r: { name: string }) => r.name === "simple");
+    expect(simple.coverage).toBe(1);
+    expect(simple.crap).toBe(crapScore(simple.complexity, 1));
+  });
+
   it("--max-crap with a coverage file that matches nothing returns 2", async () => {
     process.chdir(projA);
     const raw = fs.readFileSync(

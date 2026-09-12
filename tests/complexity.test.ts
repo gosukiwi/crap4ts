@@ -154,6 +154,19 @@ function e(a: boolean, b: boolean) {
     expect(analyzeComplexity("a.ts", assign, "strict")[0].complexity).toBe(2);
   });
 
+  it("counts ?.[] the same as ?. under strict", () => {
+    const dot = `function o(a: any) {
+  return a?.b;
+}`;
+    const bracket = `function o(a: any) {
+  return a?.[b];
+}`;
+    expect(analyzeComplexity("a.ts", bracket, "strict")[0].complexity).toBe(
+      analyzeComplexity("a.ts", dot, "strict")[0].complexity,
+    );
+    expect(analyzeComplexity("a.ts", bracket, "strict")[0].complexity).toBe(2);
+  });
+
   it("reports 1-based line/col and inclusive endLine of the body", () => {
     const src = `function f(x: number): number {
   if (x > 0) {

@@ -1,13 +1,25 @@
 {
   "name": "crap4ts",
+  "version": "0.1.0",
+  "description": "Finds the riskiest code in your TypeScript project: code that is hard to follow and poorly tested.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gosukiwi/crap4ts"
+  },
   "private": false,
   "type": "module",
   "bin": {
     "crap4ts": "dist/cli.js"
   },
+  "files": [
+    "dist/",
+    "README.md"
+  ],
   "scripts": {
     "test": "vitest run",
     "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "npm run build",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

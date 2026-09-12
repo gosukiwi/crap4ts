@@ -253,7 +253,19 @@ export async function main(argv: string[]): Promise<number> {
   }
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+function isMainEntry(argv1: string | undefined): boolean {
+  if (argv1 === undefined) {
+    return false;
+  }
+  let resolved: string;
+  try {
+    resolved = fs.realpathSync(argv1);
+  } catch {
+    resolved = argv1;
+  }
+  return import.meta.url === pathToFileURL(resolved).href;
+}
+if (isMainEntry(process.argv[1])) {
   main(process.argv.slice(2)).then(
     (code) => {
       process.exitCode = code;

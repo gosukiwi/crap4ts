@@ -46,6 +46,59 @@ function propertyNameText(
   return name.getText(sourceFile);
 }
 
+function resolveVariableName(node: FunctionLike): string | null {
+  const parent = node.parent;
+  if (
+    parent !== undefined &&
+    ts.isVariableDeclaration(parent) &&
+    parent.initializer === node &&
+    ts.isIdentifier(parent.name)
+  ) {
+    return parent.name.text;
+  }
+  return null;
+}
+
+function resolvePropertyName(
+  node: FunctionLike,
+  sourceFile: ts.SourceFile,
+): string | null {
+  const parent = node.parent;
+  if (
+    parent !== undefined &&
+    (ts.isPropertyAssignment(parent) || ts.isPropertyDeclaration(parent)) &&
+    parent.initializer === node
+  ) {
+    return propertyNameText(parent.name, sourceFile);
+  }
+  return null;
+}
+
+function resolveAssignmentName(
+  node: FunctionLike,
+  sourceFile: ts.SourceFile,
+): string | null {
+  const parent = node.parent;
+  if (
+    parent === undefined ||
+    !ts.isBinaryExpression(parent) ||
+    parent.operatorToken.kind !== ts.SyntaxKind.EqualsToken ||
+    parent.right !== node
+  ) {
+    return null;
+  }
+  if (ts.isIdentifier(parent.left)) {
+    return parent.left.text;
+  }
+  if (
+    ts.isPropertyAccessExpression(parent.left) &&
+    parent.left.name !== undefined
+  ) {
+    return parent.left.getText(sourceFile);
+  }
+  return null;
+}
+
 function resolveName(node: FunctionLike, sourceFile: ts.SourceFile): string {
   if (ts.isConstructorDeclaration(node)) {
     return "constructor";
@@ -60,46 +113,12 @@ function resolveName(node: FunctionLike, sourceFile: ts.SourceFile): string {
   ) {
     return propertyNameText(node.name, sourceFile);
   }
-  const parent = node.parent;
-  if (
-    parent !== undefined &&
-    ts.isVariableDeclaration(parent) &&
-    parent.initializer === node &&
-    ts.isIdentifier(parent.name)
-  ) {
-    return parent.name.text;
-  }
-  if (
-    parent !== undefined &&
-    ts.isPropertyAssignment(parent) &&
-    parent.initializer === node
-  ) {
-    return propertyNameText(parent.name, sourceFile);
-  }
-  if (
-    parent !== undefined &&
-    ts.isPropertyDeclaration(parent) &&
-    parent.initializer === node
-  ) {
-    return propertyNameText(parent.name, sourceFile);
-  }
-  if (
-    parent !== undefined &&
-    ts.isBinaryExpression(parent) &&
-    parent.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
-    parent.right === node
-  ) {
-    if (ts.isIdentifier(parent.left)) {
-      return parent.left.text;
-    }
-    if (
-      ts.isPropertyAccessExpression(parent.left) &&
-      parent.left.name !== undefined
-    ) {
-      return parent.left.getText(sourceFile);
-    }
-  }
-  return "(anonymous)";
+  return (
+    resolveVariableName(node) ??
+    resolvePropertyName(node, sourceFile) ??
+    resolveAssignmentName(node, sourceFile) ??
+    "(anonymous)"
+  );
 }
 
 // questionDotToken lives on the individual optional-chain node interfaces,

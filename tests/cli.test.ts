@@ -305,4 +305,27 @@ describe("cli", () => {
       errorSpy.mock.calls.map((args) => String(args[0])).join("\n"),
     ).toContain("--max-crap requires coverage data");
   });
+
+  it("invalid --complexity-profile returns 2", async () => {
+    process.chdir(projA);
+    const code = await main(["--complexity-profile", "bogus"]);
+    expect(code).toBe(2);
+    expect(errorSpy).toHaveBeenCalled();
+  });
+
+  it("missing src dir returns 2", async () => {
+    process.chdir(projA);
+    const code = await main(["nope-src-dir"]);
+    expect(code).toBe(2);
+    expect(errorSpy).toHaveBeenCalled();
+    expect(stdout()).toBe("");
+  });
+
+  it("src path that is a file returns 2", async () => {
+    process.chdir(projA);
+    const code = await main([path.join("src", "a.ts")]);
+    expect(code).toBe(2);
+    expect(errorSpy).toHaveBeenCalled();
+    expect(stdout()).toBe("");
+  });
 });

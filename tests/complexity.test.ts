@@ -1,0 +1,235 @@
+import { describe, expect, it } from "vitest";
+import { analyzeComplexity } from "../src/complexity.js";
+
+describe("analyzeComplexity", () => {
+  it("gives a trivial function complexity 1 under all profiles", () => {
+    const src = `function trivial() { return 1; }`;
+    for (const profile of ["permissive", "balanced", "strict"] as const) {
+      const res = analyzeComplexity("a.ts", src, profile);
+      expect(res).toHaveLength(1);
+      expect(res[0]).toMatchObject({
+        file: "a.ts",
+        line: 1,
+        col: 1,
+        endLine: 1,
+        name: "trivial",
+        complexity: 1,
+      });
+    }
+  });
+
+  it("counts if + for + && + ternary + else as 3 / 5 / 6", () => {
+    const src = `function f(x: number): number {
+  if (x > 0) {
+    return x > 1 && x < 10 ? 1 : 2;
+  } else {
+    for (let i = 0; i < x; i++) {
+    }
+    return 0;
+  }
+}`;
+    // permissive: if(1) + for(1) = base 1 + 2 = 3
+    // balanced: + &&(1) + ternary(1) = 5
+    // strict: + bare else(1) = 6
+    expect(analyzeComplexity("a.ts", src, "permissive")[0].complexity).toBe(3);
+    expect(analyzeComplexity("a.ts", src, "balanced")[0].complexity).toBe(5);
+    expect(analyzeComplexity("a.ts", src, "strict")[0].complexity).toBe(6);
+  });
+
+  it("counts catch clauses", () => {
+    const src = `function t() {
+  try {
+    foo();
+  } catch (e) {
+    bar();
+  }
+}`;
+    for (const profile of ["permissive", "balanced", "strict"] as const) {
+      expect(analyzeComplexity("a.ts", src, profile)[0].complexity).toBe(2);
+    }
+  });
+
+  it("counts each switch case but not default", () => {
+    const src = `function s(x: number) {
+  switch (x) {
+    case 1:
+      return 1;
+    case 2:
+      return 2;
+    default:
+      return 0;
+  }
+}`;
+    for (const profile of ["permissive", "balanced", "strict"] as const) {
+      expect(analyzeComplexity("a.ts", src, profile)[0].complexity).toBe(3);
+    }
+  });
+
+  it("names an unassigned arrow (anonymous)", () => {
+    const src = `[1, 2, 3].map((n) => n * 2);`;
+    const res = analyzeComplexity("a.ts", src, "permissive");
+    expect(res).toHaveLength(1);
+    expect(res[0]).toMatchObject({ name: "(anonymous)", complexity: 1 });
+  });
+
+  it("records class methods and constructors with their own names", () => {
+    const src = `class A {
+  constructor() {}
+  greet(x: number) {
+    if (x > 0) {
+      return 1;
+    }
+    return 0;
+  }
+}`;
+    const res = analyzeComplexity("a.ts", src, "permissive");
+    expect(res).toHaveLength(2);
+    expect(res[0]).toMatchObject({ name: "constructor", complexity: 1 });
+    expect(res[1]).toMatchObject({ name: "greet", complexity: 2 });
+  });
+
+  it("records nested functions separately without leaking inner complexity", () => {
+    const src = `function outer() {
+  function inner() {
+    if (true) {
+      return 1;
+    }
+    return 0;
+  }
+  return inner();
+}`;
+    const res = analyzeComplexity("a.ts", src, "permissive");
+    expect(res).toHaveLength(2);
+    expect(res[0]).toMatchObject({ name: "outer", complexity: 1 });
+    expect(res[1]).toMatchObject({ name: "inner", complexity: 2 });
+  });
+
+  it("resolves names from enclosing variables and counts else-if once per if", () => {
+    const src = `const g = function () { return 1; };
+function e(a: boolean, b: boolean) {
+  if (a) {
+    return 1;
+  } else if (b) {
+    return 2;
+  } else {
+    return 3;
+  }
+}`;
+    const perm = analyzeComplexity("a.ts", src, "permissive");
+    expect(perm).toHaveLength(2);
+    expect(perm[0]).toMatchObject({ name: "g", complexity: 1 });
+    // 2 IfStatements, no bare-else bonus under permissive
+    expect(perm[1]).toMatchObject({ name: "e", complexity: 3 });
+    // strict adds exactly one for the bare final else
+    // (the outer else branch IS an IfStatement, so no bonus there)
+    expect(analyzeComplexity("a.ts", src, "strict")[1].complexity).toBe(4);
+  });
+
+  it("counts ?. and ?? only under the right profiles", () => {
+    const opt = `function o(a: any) {
+  return a?.b;
+}`;
+    expect(analyzeComplexity("a.ts", opt, "permissive")[0].complexity).toBe(1);
+    expect(analyzeComplexity("a.ts", opt, "balanced")[0].complexity).toBe(1);
+    expect(analyzeComplexity("a.ts", opt, "strict")[0].complexity).toBe(2);
+
+    const nullish = `function n(a: number | null) {
+  return a ?? 0;
+}`;
+    expect(analyzeComplexity("a.ts", nullish, "permissive")[0].complexity).toBe(
+      1,
+    );
+    expect(analyzeComplexity("a.ts", nullish, "balanced")[0].complexity).toBe(
+      2,
+    );
+
+    const assign = `function la(a: boolean, b: boolean) {
+  a &&= b;
+  return a;
+}`;
+    expect(analyzeComplexity("a.ts", assign, "permissive")[0].complexity).toBe(
+      1,
+    );
+    expect(analyzeComplexity("a.ts", assign, "balanced")[0].complexity).toBe(1);
+    expect(analyzeComplexity("a.ts", assign, "strict")[0].complexity).toBe(2);
+  });
+
+  it("counts ?.[] the same as ?. under strict", () => {
+    const dot = `function o(a: any) {
+  return a?.b;
+}`;
+    const bracket = `function o(a: any) {
+  return a?.[b];
+}`;
+    expect(analyzeComplexity("a.ts", bracket, "strict")[0].complexity).toBe(
+      analyzeComplexity("a.ts", dot, "strict")[0].complexity,
+    );
+    expect(analyzeComplexity("a.ts", bracket, "strict")[0].complexity).toBe(2);
+  });
+
+  it("counts ?. on tagged templates the same as ?. under strict", () => {
+    const dot = `function o(a: any) {
+  return a?.b;
+}`;
+    const tagged = "function o(tag: any) {\n  return tag?.`hi`;\n}";
+    expect(analyzeComplexity("a.ts", tagged, "strict")[0].complexity).toBe(
+      analyzeComplexity("a.ts", dot, "strict")[0].complexity,
+    );
+    expect(analyzeComplexity("a.ts", tagged, "strict")[0].complexity).toBe(2);
+  });
+
+  it("counts ?.() optional calls the same as ?. under strict", () => {
+    const dot = `function o(a: any) {
+  return a?.b;
+}`;
+    const optCall = `function o(foo: any) {
+  return foo?.();
+}`;
+    expect(analyzeComplexity("a.ts", optCall, "strict")[0].complexity).toBe(
+      analyzeComplexity("a.ts", dot, "strict")[0].complexity,
+    );
+    expect(analyzeComplexity("a.ts", optCall, "strict")[0].complexity).toBe(2);
+    expect(analyzeComplexity("a.ts", optCall, "balanced")[0].complexity).toBe(
+      1,
+    );
+  });
+
+  it("names a class-field arrow from its PropertyDeclaration", () => {
+    const src = `class A {
+  handler = (x: number) => {
+    if (x > 0) {
+      return 1;
+    }
+    return 0;
+  };
+}`;
+    const res = analyzeComplexity("a.ts", src, "permissive");
+    expect(res).toHaveLength(1);
+    expect(res[0]).toMatchObject({ name: "handler", complexity: 2 });
+  });
+
+  it("names an arrow assigned via = from its left-hand side", () => {
+    const src = `o.h = () => { return 1; };`;
+    const res = analyzeComplexity("a.ts", src, "permissive");
+    expect(res).toHaveLength(1);
+    expect(res[0]).toMatchObject({ name: "o.h", complexity: 1 });
+  });
+
+  it("reports 1-based line/col and inclusive endLine of the body", () => {
+    const src = `function f(x: number): number {
+  if (x > 0) {
+    return 1;
+  }
+  return 0;
+}`;
+    const res = analyzeComplexity("a.ts", src, "permissive");
+    expect(res).toHaveLength(1);
+    expect(res[0]).toMatchObject({
+      file: "a.ts",
+      line: 1,
+      col: 1,
+      endLine: 6,
+      name: "f",
+    });
+  });
+});

@@ -1,18 +1,17 @@
 #!/usr/bin/env node
-// @types/node is not a dependency and package.json is owned by another
-// slice, so node imports are @ts-ignore'd to keep `npm run build` green.
-declare const process: any;
-// @ts-ignore: no node types in this repo
 import * as fs from "node:fs";
-// @ts-ignore: no node types in this repo
 import * as path from "node:path";
-// @ts-ignore: no node types in this repo
 import { pathToFileURL } from "node:url";
 import { analyzeComplexity } from "./complexity.js";
 import type { ComplexityProfile } from "./complexity.js";
 import { assembleRecord } from "./crap.js";
 import type { CrapRecord } from "./crap.js";
-import { functionCoverage, parseLcov } from "./lcov.js";
+import {
+  functionCoverage,
+  matchLcovFile,
+  normalize,
+  parseLcov,
+} from "./lcov.js";
 import type { LcovFile } from "./lcov.js";
 import { renderJson, renderTable } from "./report.js";
 
@@ -28,12 +27,84 @@ interface Options {
 
 const USAGE = `usage: crap4ts [src] [--coverage <path>] [--format json|table] [--max-crap <n>] [--complexity-profile strict|balanced|permissive] [--help]`;
 
-function fail(message: string): number {
-  console.error(`crap4ts: ${message}`);
-  return 2;
+class ParseError extends Error {}
+
+class HelpRequested extends Error {}
+
+function fail(message: string): never {
+  throw new ParseError(`crap4ts: ${message}`);
 }
 
-function parseArgs(argv: string[]): { options: Options } | { code: number } {
+interface FlagSpec {
+  name: string;
+  validate: (value: string) => void;
+  assign: (options: Options, value: string) => void;
+}
+
+const FLAG_SPECS: FlagSpec[] = [
+  {
+    name: "--coverage",
+    validate: () => {},
+    assign: (options, value) => {
+      options.coveragePath = value;
+    },
+  },
+  {
+    name: "--format",
+    validate: (value) => {
+      if (value !== "json" && value !== "table") {
+        fail(`invalid --format: ${value}`);
+      }
+    },
+    assign: (options, value) => {
+      options.format = value as Format;
+    },
+  },
+  {
+    name: "--max-crap",
+    validate: (value) => {
+      if (!Number.isFinite(Number(value))) {
+        fail(`invalid --max-crap: ${value}`);
+      }
+    },
+    assign: (options, value) => {
+      options.maxCrap = Number(value);
+    },
+  },
+  {
+    name: "--complexity-profile",
+    validate: (value) => {
+      if (
+        value !== "strict" &&
+        value !== "balanced" &&
+        value !== "permissive"
+      ) {
+        fail(`invalid --complexity-profile: ${value}`);
+      }
+    },
+    assign: (options, value) => {
+      options.profile = value as ComplexityProfile;
+    },
+  },
+];
+
+// Splits `--flag=value` from `--flag value` in one place.
+function takeValue(
+  flag: string,
+  args: string[],
+  i: number,
+): { value: string; next: number } {
+  const eq = args[i].indexOf("=");
+  if (eq !== -1) {
+    return { value: args[i].slice(eq + 1), next: i };
+  }
+  if (i + 1 >= args.length) {
+    fail(`${flag} requires a value`);
+  }
+  return { value: args[i + 1], next: i + 1 };
+}
+
+function parseArgs(argv: string[]): Options {
   const options: Options = {
     src: "src",
     coveragePath: null,
@@ -43,76 +114,32 @@ function parseArgs(argv: string[]): { options: Options } | { code: number } {
   };
   let positional: string | null = null;
 
-  const takeValue = (
-    flag: string,
-    args: string[],
-    i: number,
-  ): { value: string; next: number } | { code: number } => {
-    const eq = args[i].indexOf("=");
-    if (eq !== -1) {
-      return { value: args[i].slice(eq + 1), next: i };
-    }
-    if (i + 1 >= args.length) {
-      return { code: fail(`${flag} requires a value`) };
-    }
-    return { value: args[i + 1], next: i + 1 };
-  };
-
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     const name = arg.includes("=") ? arg.slice(0, arg.indexOf("=")) : arg;
     if (name === "--help") {
       console.log(USAGE);
-      return { code: 0 };
-    } else if (name === "--coverage") {
-      const taken = takeValue("--coverage", argv, i);
-      if ("code" in taken) return taken;
-      options.coveragePath = taken.value;
-      i = taken.next;
-    } else if (name === "--format") {
-      const taken = takeValue("--format", argv, i);
-      if ("code" in taken) return taken;
-      if (taken.value !== "json" && taken.value !== "table") {
-        return { code: fail(`invalid --format: ${taken.value}`) };
-      }
-      options.format = taken.value;
-      i = taken.next;
-    } else if (name === "--max-crap") {
-      const taken = takeValue("--max-crap", argv, i);
-      if ("code" in taken) return taken;
-      const n = Number(taken.value);
-      if (!Number.isFinite(n)) {
-        return { code: fail(`invalid --max-crap: ${taken.value}`) };
-      }
-      options.maxCrap = n;
-      i = taken.next;
-    } else if (name === "--complexity-profile") {
-      const taken = takeValue("--complexity-profile", argv, i);
-      if ("code" in taken) return taken;
-      if (
-        taken.value !== "strict" &&
-        taken.value !== "balanced" &&
-        taken.value !== "permissive"
-      ) {
-        return {
-          code: fail(`invalid --complexity-profile: ${taken.value}`),
-        };
-      }
-      options.profile = taken.value;
+      throw new HelpRequested();
+    }
+    const spec = FLAG_SPECS.find((s) => s.name === name);
+    if (spec !== undefined) {
+      const taken = takeValue(spec.name, argv, i);
+      spec.validate(taken.value);
+      spec.assign(options, taken.value);
       i = taken.next;
     } else if (arg.startsWith("--")) {
-      return { code: fail(`unknown flag: ${arg}`) };
+      fail(`unknown flag: ${arg}`);
     } else if (positional === null) {
       positional = arg;
     } else {
-      return { code: fail(`unexpected argument: ${arg}`) };
+      fail(`unexpected argument: ${arg}`);
     }
   }
 
   if (positional !== null) {
     options.src = positional;
   }
-  return { options };
+  return options;
 }
 
 function collectTsFiles(dir: string): string[] {
@@ -129,57 +156,8 @@ function collectTsFiles(dir: string): string[] {
   return out;
 }
 
-function normalize(p: string): string {
-  let s = p.replace(/\\/g, "/");
-  if (s.startsWith("./")) s = s.slice(2);
-  return s;
-}
-
-function toAbsolute(p: string, cwd: string): string {
-  return normalize(path.resolve(cwd, p));
-}
-
-function segments(p: string): string[] {
-  return normalize(p)
-    .split("/")
-    .filter((s) => s !== "" && s !== ".");
-}
-
-function suffixJoin(a: string, b: string): boolean {
-  const sa = segments(a);
-  const sb = segments(b);
-  if (sa.length === 0 || sb.length === 0) return false;
-  const longer = sa.length >= sb.length ? sa : sb;
-  const shorter = sa.length >= sb.length ? sb : sa;
-  if (longer.length === shorter.length) return false;
-  const tail = longer.slice(longer.length - shorter.length);
-  return tail.every((s, i) => s === shorter[i]);
-}
-
-function findLcovFile(
-  lcovFiles: LcovFile[],
-  rel: string,
-  cwd: string,
-): LcovFile | null {
-  for (const f of lcovFiles) {
-    if (normalize(f.file) === rel) return f;
-  }
-  const analyzedAbs = toAbsolute(rel, cwd);
-  for (const f of lcovFiles) {
-    if (toAbsolute(f.file, cwd) === analyzedAbs) return f;
-  }
-  for (const f of lcovFiles) {
-    if (suffixJoin(normalize(f.file), rel)) return f;
-  }
-  return null;
-}
-
-export async function main(argv: string[]): Promise<number> {
-  const parsed = parseArgs(argv);
-  if (!("options" in parsed)) {
-    return parsed.code;
-  }
-  const options = parsed.options;
+async function run(argv: string[]): Promise<number> {
+  const options = parseArgs(argv);
 
   const cwd = process.cwd();
   const srcDir = path.resolve(cwd, options.src);
@@ -207,10 +185,6 @@ export async function main(argv: string[]): Promise<number> {
     }
   }
 
-  if (options.maxCrap !== null && lcovFiles === null) {
-    return fail("--max-crap requires coverage data");
-  }
-
   const records: CrapRecord[] = [];
   const files = collectTsFiles(srcDir).sort();
   for (const full of files) {
@@ -218,7 +192,7 @@ export async function main(argv: string[]): Promise<number> {
     const sourceText = fs.readFileSync(full, "utf8");
     const fns = analyzeComplexity(rel, sourceText, options.profile);
     const lcovFile =
-      lcovFiles === null ? null : findLcovFile(lcovFiles, rel, cwd);
+      lcovFiles === null ? null : matchLcovFile(lcovFiles, rel, cwd);
     for (const fn of fns) {
       const coverage =
         lcovFile === null
@@ -237,20 +211,34 @@ export async function main(argv: string[]): Promise<number> {
     console.log(renderTable(records));
   }
 
-  if (
-    options.maxCrap !== null &&
-    !records.some((r) => r.coverage !== null)
-  ) {
+  const maxCrap = options.maxCrap;
+  const hasCoverage = records.some((r) => r.coverage !== null);
+  if (maxCrap !== null && !hasCoverage) {
     return fail("--max-crap requires coverage data");
   }
 
   if (
-    options.maxCrap !== null &&
-    records.some((r) => r.crap !== null && r.crap > options.maxCrap!)
+    maxCrap !== null &&
+    records.some((r) => r.crap !== null && r.crap > maxCrap)
   ) {
     return 1;
   }
   return 0;
+}
+
+export async function main(argv: string[]): Promise<number> {
+  try {
+    return await run(argv);
+  } catch (err) {
+    if (err instanceof HelpRequested) {
+      return 0;
+    }
+    if (err instanceof ParseError) {
+      console.error(err.message);
+      return 2;
+    }
+    throw err;
+  }
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {

@@ -98,3 +98,13 @@ Exit 1 means some function is over the limit. Use it in CI.
 | `--complexity-profile <p>` | `strict` (standard), `balanced`, or `permissive`                  |
 
 TSX files for React apps are next (see issue #4).
+
+## Release a new version
+
+```bash
+npm version patch   # or minor / major — bumps package.json, commits, tags
+npm publish --access public
+git push --follow-tags
+```
+
+The build runs on its own during publish, so there is no manual build step. First time only: `npm login` with an account that owns the `@gosukiwi` scope.

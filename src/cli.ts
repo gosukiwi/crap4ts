@@ -205,16 +205,16 @@ async function run(argv: string[]): Promise<number> {
     a.file < b.file ? -1 : a.file > b.file ? 1 : a.line - b.line,
   );
 
-  if (options.format === "json") {
-    console.log(renderJson(records));
-  } else {
-    console.log(renderTable(records));
-  }
-
   const maxCrap = options.maxCrap;
   const hasCoverage = records.some((r) => r.coverage !== null);
   if (maxCrap !== null && !hasCoverage) {
     return fail("--max-crap requires coverage data");
+  }
+
+  if (options.format === "json") {
+    console.log(renderJson(records));
+  } else {
+    console.log(renderTable(records));
   }
 
   if (

@@ -15,5 +15,11 @@ describe("crap script", () => {
     expect(script).toContain("dist/cli.js src");
     expect(script).toContain("--coverage ./coverage/lcov.info");
     expect(script).toContain("--max-crap 15");
+    const stages = (script ?? "").split("&&");
+    expect(stages).toHaveLength(3);
+    expect(stages[0]).toContain("vitest run --coverage");
+    expect(stages[1]).toContain("npm run build");
+    expect(stages[2]).toContain("dist/cli.js src");
+    expect(stages[2]).toContain("--max-crap 15");
   });
 });

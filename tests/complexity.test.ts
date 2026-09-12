@@ -453,6 +453,121 @@ function e(a: boolean, b: boolean) {
     });
   });
 
+  describe("hook attribution", () => {
+    it("attributes effect hooks to the nested function only", () => {
+      const src = `function outer() {
+  function inner() {
+    useEffect(() => {}, []);
+  }
+  return inner;
+}`;
+      for (const profile of ["permissive", "balanced", "strict"] as const) {
+        const result = analyzeComplexity("a.ts", src, profile);
+        const byName = Object.fromEntries(
+          result.map((r) => [r.name, r.complexity]),
+        );
+        expect(byName["outer"]).toBe(1);
+        expect(byName["inner"]).toBe(3);
+      }
+    });
+
+    it("pairs state hooks within each function, not across nesting", () => {
+      const src = `function outer() {
+  useState(0);
+  function inner() {
+    useState(1);
+  }
+  return inner;
+}`;
+      for (const profile of ["permissive", "balanced", "strict"] as const) {
+        const result = analyzeComplexity("a.ts", src, profile);
+        const byName = Object.fromEntries(
+          result.map((r) => [r.name, r.complexity]),
+        );
+        expect(byName["outer"]).toBe(1);
+        expect(byName["inner"]).toBe(1);
+      }
+    });
+
+    it("attributes React.-prefixed memo calls to the nested function only", () => {
+      const src = `function outer() {
+  function inner() {
+    React.useCallback(() => 1, []);
+  }
+  return inner;
+}`;
+      for (const profile of ["permissive", "balanced", "strict"] as const) {
+        const result = analyzeComplexity("a.ts", src, profile);
+        const byName = Object.fromEntries(
+          result.map((r) => [r.name, r.complexity]),
+        );
+        expect(byName["outer"]).toBe(1);
+        expect(byName["inner"]).toBe(2);
+      }
+    });
+
+    it("pairs React.-prefixed state calls within each function", () => {
+      const split = `function outer() {
+  React.useState(0);
+  function inner() {
+    React.useState(1);
+  }
+  return inner;
+}`;
+      for (const profile of ["permissive", "balanced", "strict"] as const) {
+        const result = analyzeComplexity("a.ts", split, profile);
+        const byName = Object.fromEntries(
+          result.map((r) => [r.name, r.complexity]),
+        );
+        expect(byName["outer"]).toBe(1);
+        expect(byName["inner"]).toBe(1);
+      }
+      const pair = `function outer() {
+  function inner() {
+    React.useState(0);
+    React.useState(1);
+  }
+  return inner;
+}`;
+      for (const profile of ["permissive", "balanced", "strict"] as const) {
+        const result = analyzeComplexity("a.ts", pair, profile);
+        const byName = Object.fromEntries(
+          result.map((r) => [r.name, r.complexity]),
+        );
+        expect(byName["outer"]).toBe(1);
+        expect(byName["inner"]).toBe(2);
+      }
+    });
+
+    it("attributes hooks inside a class-field arrow to that arrow", () => {
+      const src = `class C {
+  handler = () => {
+    useEffect(() => {}, []);
+  };
+}`;
+      for (const profile of ["permissive", "balanced", "strict"] as const) {
+        const result = analyzeComplexity("a.ts", src, profile);
+        const handler = result.find((r) => r.name === "handler");
+        expect(handler).toBeDefined();
+        expect(handler!.complexity).toBe(3);
+      }
+    });
+
+    it("attributes hooks inside an object-literal arrow to that arrow", () => {
+      const src = `const o = {
+  handler: () => {
+    useMemo(() => 1, []);
+  },
+};`;
+      for (const profile of ["permissive", "balanced", "strict"] as const) {
+        const result = analyzeComplexity("a.ts", src, profile);
+        const handler = result.find((r) => r.name === "handler");
+        expect(handler).toBeDefined();
+        expect(handler!.complexity).toBe(2);
+      }
+    });
+  });
+
   it("reports 1-based line/col and inclusive endLine of the body", () => {
     const src = `function f(x: number): number {
   if (x > 0) {

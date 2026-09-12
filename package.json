@@ -18,6 +18,7 @@
   ],
   "scripts": {
     "test": "vitest run",
+    "crap": "vitest run --coverage --coverage.provider=v8 --coverage.reporter=lcov && npm run build && node dist/cli.js src --coverage ./coverage/lcov.info --max-crap 15",
     "build": "tsc -p tsconfig.build.json",
     "prepublishOnly": "npm run build",
     "lint": "eslint .",

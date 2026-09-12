@@ -135,6 +135,61 @@ interface ComplexityRule {
   test: (node: ts.Node) => boolean;
 }
 
+export const EFFECT_HOOKS: readonly string[] = [
+  "useEffect",
+  "useLayoutEffect",
+  "useInsertionEffect",
+];
+
+export const MEMO_HOOKS: readonly string[] = ["useMemo", "useCallback"];
+
+export const STATE_HOOKS: readonly string[] = [
+  "useState",
+  "useReducer",
+  "useRef",
+  "useContext",
+];
+
+export const HOOK_WEIGHTS = { effect: 2, memo: 1, statePair: 1 } as const;
+
+type HookKind = "effect" | "memo" | "state";
+
+const HOOK_KIND_BY_NAME: ReadonlyMap<string, HookKind> = new Map([
+  ...EFFECT_HOOKS.map((name): [string, HookKind] => [name, "effect"]),
+  ...MEMO_HOOKS.map((name): [string, HookKind] => [name, "memo"]),
+  ...STATE_HOOKS.map((name): [string, HookKind] => [name, "state"]),
+]);
+const STATE_HOOK_PATTERN = /^use[A-Z]/;
+
+function hookCalleeName(expression: ts.Expression): string | undefined {
+  if (ts.isIdentifier(expression)) {
+    return expression.text;
+  }
+  if (
+    ts.isPropertyAccessExpression(expression) &&
+    ts.isIdentifier(expression.expression) &&
+    expression.expression.text === "React"
+  ) {
+    return expression.name.text;
+  }
+  return undefined;
+}
+
+function classifyHookCall(node: ts.Node): HookKind | undefined {
+  if (!ts.isCallExpression(node)) {
+    return undefined;
+  }
+  const name = hookCalleeName(node.expression);
+  if (name === undefined) {
+    return undefined;
+  }
+  const kind = HOOK_KIND_BY_NAME.get(name);
+  if (kind !== undefined) {
+    return kind;
+  }
+  return STATE_HOOK_PATTERN.test(name) ? "state" : undefined;
+}
+
 const ALL_PROFILES: ComplexityProfile[] = ["strict", "balanced", "permissive"];
 const STRICT_ONLY: ComplexityProfile[] = ["strict"];
 const BALANCED_OR_STRICT: ComplexityProfile[] = ["balanced", "strict"];
@@ -207,6 +262,7 @@ function countForFunction(
   profile: ComplexityProfile,
 ): number {
   let complexity = 1;
+  let stateCalls = 0;
 
   function visit(node: ts.Node): void {
     if (node !== fn && isFunctionLike(node)) {
@@ -217,10 +273,19 @@ function countForFunction(
         complexity += 1;
       }
     }
+    const hookKind = classifyHookCall(node);
+    if (hookKind === "effect") {
+      complexity += HOOK_WEIGHTS.effect;
+    } else if (hookKind === "memo") {
+      complexity += HOOK_WEIGHTS.memo;
+    } else if (hookKind === "state") {
+      stateCalls += 1;
+    }
     ts.forEachChild(node, visit);
   }
 
   ts.forEachChild(fn, visit);
+  complexity += Math.floor(stateCalls / 2) * HOOK_WEIGHTS.statePair;
   return complexity;
 }
 

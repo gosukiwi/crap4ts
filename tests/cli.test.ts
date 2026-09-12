@@ -305,4 +305,11 @@ describe("cli", () => {
       errorSpy.mock.calls.map((args) => String(args[0])).join("\n"),
     ).toContain("--max-crap requires coverage data");
   });
+
+  it("invalid --complexity-profile returns 2", async () => {
+    process.chdir(projA);
+    const code = await main(["--complexity-profile", "bogus"]);
+    expect(code).toBe(2);
+    expect(errorSpy).toHaveBeenCalled();
+  });
 });

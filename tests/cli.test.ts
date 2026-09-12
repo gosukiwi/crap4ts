@@ -78,6 +78,7 @@ describe("cli", () => {
     const code = await main(["--max-crap", "15"]);
     expect(code).toBe(2);
     expect(errorSpy).toHaveBeenCalled();
+    expect(stdout()).toBe("");
   });
 
   it("explicit missing --coverage path returns 2", async () => {

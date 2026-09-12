@@ -168,41 +168,50 @@ function collectTsFiles(dir: string): string[] {
   return out;
 }
 
-async function run(argv: string[]): Promise<number> {
-  const options = parseArgs(argv);
-
-  const cwd = process.cwd();
-  const srcDir = path.resolve(cwd, options.src);
+function resolveSrcDir(cwd: string, src: string): string {
+  const srcDir = path.resolve(cwd, src);
   let srcStat: fs.Stats;
   try {
     srcStat = fs.statSync(srcDir);
   } catch {
-    return fail(`src dir not found: ${options.src}`);
+    return fail(`src dir not found: ${src}`);
   }
   if (!srcStat.isDirectory()) {
-    return fail(`src dir not found: ${options.src}`);
+    return fail(`src dir not found: ${src}`);
   }
+  return srcDir;
+}
 
-  let lcovFiles: LcovFile[] | null = null;
-  if (options.coveragePath !== null) {
-    const coverageAbs = path.resolve(cwd, options.coveragePath);
+function loadCoverageData(
+  cwd: string,
+  coveragePath: string | null,
+): LcovFile[] | null {
+  if (coveragePath !== null) {
+    const coverageAbs = path.resolve(cwd, coveragePath);
     if (!fs.existsSync(coverageAbs)) {
-      return fail(`coverage file not found: ${options.coveragePath}`);
+      return fail(`coverage file not found: ${coveragePath}`);
     }
-    lcovFiles = parseLcov(fs.readFileSync(coverageAbs, "utf8"));
-  } else {
-    const defaultCoverage = path.join(cwd, "coverage", "lcov.info");
-    if (fs.existsSync(defaultCoverage)) {
-      lcovFiles = parseLcov(fs.readFileSync(defaultCoverage, "utf8"));
-    }
+    return parseLcov(fs.readFileSync(coverageAbs, "utf8"));
   }
+  const defaultCoverage = path.join(cwd, "coverage", "lcov.info");
+  if (fs.existsSync(defaultCoverage)) {
+    return parseLcov(fs.readFileSync(defaultCoverage, "utf8"));
+  }
+  return null;
+}
 
+function buildRecords(
+  cwd: string,
+  srcDir: string,
+  profile: ComplexityProfile,
+  lcovFiles: LcovFile[] | null,
+): CrapRecord[] {
   const records: CrapRecord[] = [];
   const files = collectTsFiles(srcDir).sort();
   for (const full of files) {
     const rel = normalize(path.relative(cwd, full));
     const sourceText = fs.readFileSync(full, "utf8");
-    const fns = analyzeComplexity(rel, sourceText, options.profile);
+    const fns = analyzeComplexity(rel, sourceText, profile);
     const lcovFile =
       lcovFiles === null ? null : matchLcovFile(lcovFiles, rel, cwd);
     for (const fn of fns) {
@@ -216,12 +225,30 @@ async function run(argv: string[]): Promise<number> {
   records.sort((a, b) =>
     a.file < b.file ? -1 : a.file > b.file ? 1 : a.line - b.line,
   );
+  return records;
+}
 
-  const maxCrap = options.maxCrap;
+function checkMaxCrapGate(
+  records: CrapRecord[],
+  maxCrap: number | null,
+): boolean {
   const hasCoverage = records.some((r) => r.coverage !== null);
   if (maxCrap !== null && !hasCoverage) {
     return fail("--max-crap requires coverage data");
   }
+  return (
+    maxCrap !== null && records.some((r) => r.crap !== null && r.crap > maxCrap)
+  );
+}
+
+async function run(argv: string[]): Promise<number> {
+  const options = parseArgs(argv);
+
+  const cwd = process.cwd();
+  const srcDir = resolveSrcDir(cwd, options.src);
+  const lcovFiles = loadCoverageData(cwd, options.coveragePath);
+  const records = buildRecords(cwd, srcDir, options.profile, lcovFiles);
+  const breach = checkMaxCrapGate(records, options.maxCrap);
 
   if (options.format === "json") {
     console.log(renderJson(records));
@@ -229,10 +256,7 @@ async function run(argv: string[]): Promise<number> {
     console.log(renderTable(records));
   }
 
-  if (
-    maxCrap !== null &&
-    records.some((r) => r.crap !== null && r.crap > maxCrap)
-  ) {
+  if (breach) {
     return 1;
   }
   return 0;

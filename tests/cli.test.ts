@@ -312,4 +312,20 @@ describe("cli", () => {
     expect(code).toBe(2);
     expect(errorSpy).toHaveBeenCalled();
   });
+
+  it("missing src dir returns 2", async () => {
+    process.chdir(projA);
+    const code = await main(["nope-src-dir"]);
+    expect(code).toBe(2);
+    expect(errorSpy).toHaveBeenCalled();
+    expect(stdout()).toBe("");
+  });
+
+  it("src path that is a file returns 2", async () => {
+    process.chdir(projA);
+    const code = await main([path.join("src", "a.ts")]);
+    expect(code).toBe(2);
+    expect(errorSpy).toHaveBeenCalled();
+    expect(stdout()).toBe("");
+  });
 });

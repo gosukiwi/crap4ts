@@ -8,6 +8,7 @@ crap4ts: CRAP analysis CLI for TypeScript. Per-function complexity (TS compiler 
 npm test                          # vitest run
 npx tsc --noEmit -p tsconfig.json # typecheck (src + tests)
 npm run build                     # tsc -p tsconfig.build.json -> dist/
+npm run crap                      # lcov coverage + crap4ts src --max-crap 15, non-zero exit when any function > 15
 ```
 
 No code comments. Only humans add comments.

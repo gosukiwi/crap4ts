@@ -1,26 +1,38 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import pkg from "../package.json" with { type: "json" };
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const pkg = JSON.parse(
-  fs.readFileSync(path.join(root, "package.json"), "utf8"),
-);
+const manifest = pkg as {
+  name: string;
+  version: string;
+  bin?: Record<string, string>;
+  files?: string[];
+};
 
 describe("packaging", () => {
+  beforeAll(() => {
+    if (!fs.existsSync(path.join(root, "dist", "cli.js"))) {
+      execSync("npm run build", { cwd: root, stdio: "inherit" });
+    }
+  });
+
   it("has a publishable name, semver version, and bin target", () => {
-    expect(pkg.name).toBe("crap4ts");
-    expect(pkg.version).toMatch(/^\d+\.\d+\.\d+(-[\w.]+)?$/);
-    expect(pkg.bin?.crap4ts).toBe("dist/cli.js");
-    expect(fs.existsSync(path.join(root, pkg.bin.crap4ts))).toBe(true);
+    expect(manifest.name).toBe("crap4ts");
+    expect(manifest.version).toMatch(/^\d+\.\d+\.\d+(-[\w.]+)?$/);
+    expect(manifest.bin?.crap4ts).toBe("dist/cli.js");
+    expect(fs.existsSync(path.join(root, manifest.bin?.crap4ts ?? ""))).toBe(
+      true,
+    );
   });
 
   it("ships compiled output plus README, not source", () => {
-    expect(pkg.files).toContain("dist/");
-    expect(pkg.files).toContain("README.md");
-    for (const entry of pkg.files as string[]) {
+    expect(manifest.files).toContain("dist/");
+    expect(manifest.files).toContain("README.md");
+    for (const entry of manifest.files as string[]) {
       expect(entry).not.toMatch(/src\//);
       expect(entry).not.toMatch(/tests\//);
     }

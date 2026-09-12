@@ -194,6 +194,27 @@ function e(a: boolean, b: boolean) {
     );
   });
 
+  it("names a class-field arrow from its PropertyDeclaration", () => {
+    const src = `class A {
+  handler = (x: number) => {
+    if (x > 0) {
+      return 1;
+    }
+    return 0;
+  };
+}`;
+    const res = analyzeComplexity("a.ts", src, "permissive");
+    expect(res).toHaveLength(1);
+    expect(res[0]).toMatchObject({ name: "handler", complexity: 2 });
+  });
+
+  it("names an arrow assigned via = from its left-hand side", () => {
+    const src = `o.h = () => { return 1; };`;
+    const res = analyzeComplexity("a.ts", src, "permissive");
+    expect(res).toHaveLength(1);
+    expect(res[0]).toMatchObject({ name: "o.h", complexity: 1 });
+  });
+
   it("reports 1-based line/col and inclusive endLine of the body", () => {
     const src = `function f(x: number): number {
   if (x > 0) {

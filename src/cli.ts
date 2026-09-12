@@ -254,9 +254,17 @@ export async function main(argv: string[]): Promise<number> {
 }
 
 const entryScript = process.argv[1];
+let resolvedEntry: string | null = null;
+if (entryScript !== undefined) {
+  try {
+    resolvedEntry = fs.realpathSync(entryScript);
+  } catch {
+    resolvedEntry = entryScript;
+  }
+}
 if (
-  entryScript !== undefined &&
-  import.meta.url === pathToFileURL(fs.realpathSync(entryScript)).href
+  resolvedEntry !== null &&
+  import.meta.url === pathToFileURL(resolvedEntry).href
 ) {
   main(process.argv.slice(2)).then(
     (code) => {

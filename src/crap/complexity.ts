@@ -134,6 +134,7 @@ export const STATE_HOOKS: readonly string[] = [
 export const HOOK_WEIGHTS = { effect: 2, memo: 1, statePair: 1 } as const;
 
 const EFFECT_HOOK_SET: ReadonlySet<string> = new Set(EFFECT_HOOKS);
+const MEMO_HOOK_SET: ReadonlySet<string> = new Set(MEMO_HOOKS);
 
 function hookCalleeName(expression: ts.Expression): string | undefined {
   if (ts.isIdentifier(expression)) {
@@ -151,6 +152,14 @@ function isEffectHookCall(node: ts.Node): boolean {
   }
   const name = hookCalleeName(node.expression);
   return name !== undefined && EFFECT_HOOK_SET.has(name);
+}
+
+function isMemoHookCall(node: ts.Node): boolean {
+  if (!ts.isCallExpression(node)) {
+    return false;
+  }
+  const name = hookCalleeName(node.expression);
+  return name !== undefined && MEMO_HOOK_SET.has(name);
 }
 
 const ALL_PROFILES: ComplexityProfile[] = ["strict", "balanced", "permissive"];
@@ -237,6 +246,9 @@ function countForFunction(
     }
     if (isEffectHookCall(node)) {
       complexity += HOOK_WEIGHTS.effect;
+    }
+    if (isMemoHookCall(node)) {
+      complexity += HOOK_WEIGHTS.memo;
     }
     ts.forEachChild(node, visit);
   }

@@ -299,6 +299,54 @@ function e(a: boolean, b: boolean) {
     });
   });
 
+  describe("memo hooks", () => {
+    it("adds 1 per bare useMemo or useCallback call under all profiles", () => {
+      for (const hook of ["useMemo", "useCallback"]) {
+        const src = `function C() {
+  ${hook}(() => 1, []);
+  return 1;
+}`;
+        for (const profile of ["permissive", "balanced", "strict"] as const) {
+          expect(analyzeComplexity("a.ts", src, profile)[0].complexity).toBe(2);
+        }
+      }
+    });
+
+    it("adds 1 for React.-prefixed memo calls", () => {
+      for (const hook of ["React.useMemo", "React.useCallback"]) {
+        const src = `function C() {
+  ${hook}(() => 1, []);
+  return 1;
+}`;
+        for (const profile of ["permissive", "balanced", "strict"] as const) {
+          expect(analyzeComplexity("a.ts", src, profile)[0].complexity).toBe(2);
+        }
+      }
+    });
+
+    it("sums two memo calls", () => {
+      const src = `function C() {
+  useMemo(() => 1, []);
+  useCallback(() => 2, []);
+  return 1;
+}`;
+      for (const profile of ["permissive", "balanced", "strict"] as const) {
+        expect(analyzeComplexity("a.ts", src, profile)[0].complexity).toBe(3);
+      }
+    });
+
+    it("sums one effect call plus one memo call to +3", () => {
+      const src = `function C() {
+  useEffect(() => {}, []);
+  useMemo(() => 1, []);
+  return 1;
+}`;
+      for (const profile of ["permissive", "balanced", "strict"] as const) {
+        expect(analyzeComplexity("a.ts", src, profile)[0].complexity).toBe(4);
+      }
+    });
+  });
+
   it("reports 1-based line/col and inclusive endLine of the body", () => {
     const src = `function f(x: number): number {
   if (x > 0) {

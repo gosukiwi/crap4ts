@@ -4,10 +4,11 @@
     "module": "nodenext",
     "target": "es2022",
     "outDir": "dist",
-    "rootDir": "src",
     "declaration": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true
   },
-  "include": ["src"],
-  "exclude": ["node_modules", "dist", "coverage", "tests"]
+  "include": ["src", "tests"],
+  "exclude": ["node_modules", "dist", "coverage"]
 }

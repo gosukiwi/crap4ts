@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import pkg from "../package.json";
+import pkg from "../package.json" with { type: "json" };
 
 describe("smoke", () => {
   it("runner works and bin resolves to dist/cli.js", () => {

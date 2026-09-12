@@ -115,7 +115,9 @@ function countForFunction(fn: FunctionLike, profile: ComplexityProfile): number 
       complexity += 1;
     } else if (
       profile === "strict" &&
-      (ts.isPropertyAccessExpression(node) || ts.isCallExpression(node)) &&
+      (ts.isPropertyAccessExpression(node) ||
+        ts.isCallExpression(node) ||
+        ts.isElementAccessExpression(node)) &&
       node.questionDotToken !== undefined
     ) {
       complexity += 1;

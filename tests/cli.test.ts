@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { main } from "../src/cli.js";
@@ -90,5 +92,66 @@ describe("cli", () => {
     const code = await main(["--help"]);
     expect(code).toBe(0);
     expect(stdout().toLowerCase()).toContain("usage");
+  });
+
+  it("joins lcov records with an absolute SF path", async () => {
+    process.chdir(projA);
+    const raw = fs.readFileSync(
+      path.join(projA, "coverage", "lcov.info"),
+      "utf8",
+    );
+    const absSf = path.join(projA, "src", "a.ts");
+    const tmp = path.join(
+      fs.mkdtempSync(path.join(os.tmpdir(), "crap4ts-")),
+      "lcov.info",
+    );
+    fs.writeFileSync(tmp, raw.replace("SF:src/a.ts", `SF:${absSf}`));
+    const code = await main(["--coverage", tmp, "--format", "json"]);
+    expect(code).toBe(0);
+    const records = JSON.parse(stdout());
+    const simple = records.find((r: { name: string }) => r.name === "simple");
+    expect(simple.coverage).toBe(1);
+    expect(simple.crap).toBe(crapScore(simple.complexity, 1));
+  });
+
+  it("--max-crap with an absolute-SF lcov that breaches returns 1", async () => {
+    process.chdir(projA);
+    const raw = fs.readFileSync(
+      path.join(projA, "coverage", "lcov.info"),
+      "utf8",
+    );
+    const absSf = path.join(projA, "src", "a.ts");
+    const tmp = path.join(
+      fs.mkdtempSync(path.join(os.tmpdir(), "crap4ts-")),
+      "lcov.info",
+    );
+    fs.writeFileSync(tmp, raw.replace("SF:src/a.ts", `SF:${absSf}`));
+    const code = await main([
+      "--coverage",
+      tmp,
+      "--format",
+      "json",
+      "--max-crap",
+      "15",
+    ]);
+    expect(code).toBe(1);
+  });
+
+  it("--max-crap with a coverage file that matches nothing returns 2", async () => {
+    process.chdir(projA);
+    const raw = fs.readFileSync(
+      path.join(projA, "coverage", "lcov.info"),
+      "utf8",
+    );
+    const tmp = path.join(
+      fs.mkdtempSync(path.join(os.tmpdir(), "crap4ts-")),
+      "lcov.info",
+    );
+    fs.writeFileSync(tmp, raw.replace("SF:src/a.ts", "SF:src/nope.ts"));
+    const code = await main(["--coverage", tmp, "--max-crap", "15"]);
+    expect(code).toBe(2);
+    expect(errorSpy.mock.calls.map((args) => String(args[0])).join("\n")).toContain(
+      "--max-crap requires coverage data",
+    );
   });
 });

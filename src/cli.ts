@@ -135,6 +135,38 @@ function normalize(p: string): string {
   return s;
 }
 
+function toAbsolute(p: string, cwd: string): string {
+  return normalize(path.resolve(cwd, p));
+}
+
+function suffixJoin(a: string, b: string): boolean {
+  const longer = a.length >= b.length ? a : b;
+  const shorter = a.length >= b.length ? b : a;
+  return (
+    longer.length > shorter.length &&
+    longer.endsWith(shorter) &&
+    longer[longer.length - shorter.length - 1] === "/"
+  );
+}
+
+function findLcovFile(
+  lcovFiles: LcovFile[],
+  rel: string,
+  cwd: string,
+): LcovFile | null {
+  for (const f of lcovFiles) {
+    if (normalize(f.file) === rel) return f;
+  }
+  const analyzedAbs = toAbsolute(rel, cwd);
+  for (const f of lcovFiles) {
+    if (toAbsolute(f.file, cwd) === analyzedAbs) return f;
+  }
+  for (const f of lcovFiles) {
+    if (suffixJoin(toAbsolute(f.file, cwd), analyzedAbs)) return f;
+  }
+  return null;
+}
+
 export async function main(argv: string[]): Promise<number> {
   const parsed = parseArgs(argv);
   if (!("options" in parsed)) {
@@ -172,20 +204,14 @@ export async function main(argv: string[]): Promise<number> {
     return fail("--max-crap requires coverage data");
   }
 
-  const byFile = new Map<string, LcovFile>();
-  if (lcovFiles !== null) {
-    for (const f of lcovFiles) {
-      byFile.set(normalize(f.file), f);
-    }
-  }
-
   const records: CrapRecord[] = [];
   const files = collectTsFiles(srcDir).sort();
   for (const full of files) {
     const rel = normalize(path.relative(cwd, full));
     const sourceText = fs.readFileSync(full, "utf8");
     const fns = analyzeComplexity(rel, sourceText, options.profile);
-    const lcovFile = byFile.get(rel) ?? null;
+    const lcovFile =
+      lcovFiles === null ? null : findLcovFile(lcovFiles, rel, cwd);
     for (const fn of fns) {
       const coverage =
         lcovFile === null
@@ -202,6 +228,13 @@ export async function main(argv: string[]): Promise<number> {
     console.log(renderJson(records));
   } else {
     console.log(renderTable(records));
+  }
+
+  if (
+    options.maxCrap !== null &&
+    !records.some((r) => r.coverage !== null)
+  ) {
+    return fail("--max-crap requires coverage data");
   }
 
   if (

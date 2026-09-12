@@ -182,14 +182,38 @@ describe("cli", () => {
   it("walk collects ts tsx mts cts and skips jsx and d files", async () => {
     const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "crap4ts-"));
     fs.mkdirSync(path.join(tmpRoot, "src"), { recursive: true });
-    fs.writeFileSync(path.join(tmpRoot, "src", "Component.tsx"), "export const Widget = ({ show }: { show: boolean }) => {\n  if (!show) {\n    return null;\n  }\n  return show ? <div>yes</div> : <div>no</div>;\n};\n");
-    fs.writeFileSync(path.join(tmpRoot, "src", "util.mts"), "export function util() { return 1; }\n");
-    fs.writeFileSync(path.join(tmpRoot, "src", "legacy.cts"), "export function legacy() { return 2; }\n");
-    fs.writeFileSync(path.join(tmpRoot, "src", "keep.ts"), "export function keep() { return 3; }\n");
-    fs.writeFileSync(path.join(tmpRoot, "src", "skip.jsx"), "export function skipped() { return 4; }\n");
-    fs.writeFileSync(path.join(tmpRoot, "src", "types.d.tsx"), "export function declared() { return 5; }\n");
-    fs.writeFileSync(path.join(tmpRoot, "src", "extra.d.mts"), "export function extraDecl() { return 6; }");
-    fs.writeFileSync(path.join(tmpRoot, "src", "more.d.cts"), "export function moreDecl() { return 7; }");
+    fs.writeFileSync(
+      path.join(tmpRoot, "src", "Component.tsx"),
+      "export const Widget = ({ show }: { show: boolean }) => {\n  if (!show) {\n    return null;\n  }\n  return show ? <div>yes</div> : <div>no</div>;\n};\n",
+    );
+    fs.writeFileSync(
+      path.join(tmpRoot, "src", "util.mts"),
+      "export function util() { return 1; }\n",
+    );
+    fs.writeFileSync(
+      path.join(tmpRoot, "src", "legacy.cts"),
+      "export function legacy() { return 2; }\n",
+    );
+    fs.writeFileSync(
+      path.join(tmpRoot, "src", "keep.ts"),
+      "export function keep() { return 3; }\n",
+    );
+    fs.writeFileSync(
+      path.join(tmpRoot, "src", "skip.jsx"),
+      "export function skipped() { return 4; }\n",
+    );
+    fs.writeFileSync(
+      path.join(tmpRoot, "src", "types.d.tsx"),
+      "export function declared() { return 5; }\n",
+    );
+    fs.writeFileSync(
+      path.join(tmpRoot, "src", "extra.d.mts"),
+      "export function extraDecl() { return 6; }",
+    );
+    fs.writeFileSync(
+      path.join(tmpRoot, "src", "more.d.cts"),
+      "export function moreDecl() { return 7; }",
+    );
     process.chdir(tmpRoot);
     const code = await main(["src", "--format", "json"]);
     expect(code).toBe(0);
@@ -212,16 +236,43 @@ describe("cli", () => {
   it("join coverage for tsx file via default lcov path", async () => {
     const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "crap4ts-"));
     fs.mkdirSync(path.join(tmpRoot, "src"), { recursive: true });
-    fs.writeFileSync(path.join(tmpRoot, "src", "Component.tsx"), "export const Widget = ({ show }: { show: boolean }) => {\n  if (!show) {\n    return null;\n  }\n  return show ? <div>yes</div> : <div>no</div>;\n};\n");
-    fs.writeFileSync(path.join(tmpRoot, "src", "util.mts"), "export function util() { return 1; }\n");
-    fs.writeFileSync(path.join(tmpRoot, "src", "legacy.cts"), "export function legacy() { return 2; }\n");
-    fs.writeFileSync(path.join(tmpRoot, "src", "keep.ts"), "export function keep() { return 3; }\n");
-    fs.writeFileSync(path.join(tmpRoot, "src", "skip.jsx"), "export function skipped() { return 4; }\n");
-    fs.writeFileSync(path.join(tmpRoot, "src", "types.d.tsx"), "export function declared() { return 5; }\n");
-    fs.writeFileSync(path.join(tmpRoot, "src", "extra.d.mts"), "export function extraDecl() { return 6; }");
-    fs.writeFileSync(path.join(tmpRoot, "src", "more.d.cts"), "export function moreDecl() { return 7; }");
+    fs.writeFileSync(
+      path.join(tmpRoot, "src", "Component.tsx"),
+      "export const Widget = ({ show }: { show: boolean }) => {\n  if (!show) {\n    return null;\n  }\n  return show ? <div>yes</div> : <div>no</div>;\n};\n",
+    );
+    fs.writeFileSync(
+      path.join(tmpRoot, "src", "util.mts"),
+      "export function util() { return 1; }\n",
+    );
+    fs.writeFileSync(
+      path.join(tmpRoot, "src", "legacy.cts"),
+      "export function legacy() { return 2; }\n",
+    );
+    fs.writeFileSync(
+      path.join(tmpRoot, "src", "keep.ts"),
+      "export function keep() { return 3; }\n",
+    );
+    fs.writeFileSync(
+      path.join(tmpRoot, "src", "skip.jsx"),
+      "export function skipped() { return 4; }\n",
+    );
+    fs.writeFileSync(
+      path.join(tmpRoot, "src", "types.d.tsx"),
+      "export function declared() { return 5; }\n",
+    );
+    fs.writeFileSync(
+      path.join(tmpRoot, "src", "extra.d.mts"),
+      "export function extraDecl() { return 6; }",
+    );
+    fs.writeFileSync(
+      path.join(tmpRoot, "src", "more.d.cts"),
+      "export function moreDecl() { return 7; }",
+    );
     fs.mkdirSync(path.join(tmpRoot, "coverage"), { recursive: true });
-    fs.writeFileSync(path.join(tmpRoot, "coverage", "lcov.info"), "TN:\nSF:src/Component.tsx\nDA:1,1\nDA:2,1\nDA:3,1\nDA:4,1\nDA:5,1\nDA:6,1\nend_of_record\n");
+    fs.writeFileSync(
+      path.join(tmpRoot, "coverage", "lcov.info"),
+      "TN:\nSF:src/Component.tsx\nDA:1,1\nDA:2,1\nDA:3,1\nDA:4,1\nDA:5,1\nDA:6,1\nend_of_record\n",
+    );
     process.chdir(tmpRoot);
     const code = await main(["src", "--format", "json"]);
     expect(code).toBe(0);

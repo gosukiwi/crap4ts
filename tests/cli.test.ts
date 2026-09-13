@@ -415,6 +415,20 @@ describe("cli", () => {
     expect(risky.crap).toBeGreaterThan(15);
   });
 
+  it("empty src dir with a coverage file and --max-crap exits 0 with empty records", async () => {
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "crap4ts-"));
+    fs.mkdirSync(path.join(tmpRoot, "src"), { recursive: true });
+    fs.mkdirSync(path.join(tmpRoot, "coverage"), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmpRoot, "coverage", "lcov.info"),
+      "TN:\nSF:src/a.ts\nDA:1,1\nend_of_record\n",
+    );
+    process.chdir(tmpRoot);
+    const code = await main(["src", "--format", "json", "--max-crap", "15"]);
+    expect(code).toBe(0);
+    expect(JSON.parse(stdout())).toEqual([]);
+  });
+
   it("invalid --complexity-profile returns 2", async () => {
     process.chdir(projA);
     const code = await main(["--complexity-profile", "bogus"]);

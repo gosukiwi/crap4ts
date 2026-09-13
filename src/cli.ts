@@ -229,11 +229,12 @@ function buildOutputs(
     const lcovFile =
       lcovFiles === null ? null : matchLcovFile(lcovFiles, rel, cwd);
     for (const fn of fns) {
-      const joined =
-        lcovFile === null
+      const coverage =
+        lcovFiles === null
           ? null
-          : functionCoverage(lcovFile, fn.line, fn.endLine);
-      const coverage = lcovFiles === null ? null : (joined ?? 0);
+          : ((lcovFile === null
+              ? undefined
+              : functionCoverage(lcovFile, fn.line, fn.endLine)) ?? 0);
       const record = assembleRecord(fn, coverage);
       records.push(record);
       rows.push({
@@ -253,11 +254,10 @@ function buildOutputs(
 }
 
 function requireCoverageForGate(
-  records: CrapRecord[],
+  lcovFiles: LcovFile[] | null,
   maxCrap: number | null,
 ): void {
-  const hasCoverage = records.some((r) => r.coverage !== null);
-  if (maxCrap !== null && !hasCoverage) {
+  if (maxCrap !== null && lcovFiles === null) {
     fail("--max-crap requires coverage data");
   }
 }
@@ -280,7 +280,7 @@ async function run(argv: string[]): Promise<number> {
     options.profile,
     lcovFiles,
   );
-  requireCoverageForGate(records, options.maxCrap);
+  requireCoverageForGate(lcovFiles, options.maxCrap);
   const breach = hasCrapBreach(records, options.maxCrap);
 
   if (options.format === "html") {

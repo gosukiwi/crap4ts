@@ -211,10 +211,9 @@ describe("renderHtml", () => {
     expect(script).toContain("addEventListener");
   });
 
-  it("keeps the table header sticky", () => {
+  it("keeps the table header sticky below the toolbar", () => {
     const html = renderHtml(htmlRows);
-    expect(html).toContain("position: sticky");
-    expect(html).toContain("top: 0");
+    expect(html).toContain("thead th{position: sticky; top: 60px;");
   });
 
   it("tags function rows with raw numeric sort keys", () => {
@@ -255,5 +254,18 @@ describe("renderHtml", () => {
     expect(script).toContain("detail");
     expect(script).not.toContain("textContent");
     expect(script).not.toContain("colspan");
+  });
+
+  it("lays the table full width with a scrollable min width", () => {
+    const html = renderHtml(htmlRows);
+    expect(html).toContain("table{width:100%;min-width:960px");
+    expect(html).toContain('class="table-wrap"');
+  });
+
+  it("keeps the filter bar sticky on a sans-serif page", () => {
+    const html = renderHtml(htmlRows);
+    expect(html).toContain('class="toolbar"');
+    expect(html).toContain(".toolbar{position:sticky;top:0;");
+    expect(html).toContain("font-family:system-ui");
   });
 });

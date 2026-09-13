@@ -328,4 +328,67 @@ describe("cli", () => {
     expect(errorSpy).toHaveBeenCalled();
     expect(stdout()).toBe("");
   });
+
+  it("html format with --out writes a file and leaves stdout empty", async () => {
+    process.chdir(projA);
+    const tmpFile = path.join(
+      fs.mkdtempSync(path.join(os.tmpdir(), "crap4ts-")),
+      "report.html",
+    );
+    const code = await main(["--format", "html", "--out", tmpFile]);
+    expect(code).toBe(0);
+    const html = fs.readFileSync(tmpFile, "utf8");
+    expect(html).toContain("simple");
+    expect(html).toContain("risky");
+    expect(html).toContain("<table");
+    expect(stdout()).toBe("");
+  });
+
+  it("html format defaults to crap-report.html in the cwd", async () => {
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "crap4ts-"));
+    fs.cpSync(projA, tmpRoot, { recursive: true });
+    process.chdir(tmpRoot);
+    const code = await main(["--format", "html"]);
+    expect(code).toBe(0);
+    const html = fs.readFileSync(
+      path.join(tmpRoot, "crap-report.html"),
+      "utf8",
+    );
+    expect(html).toContain("<table");
+    expect(stdout()).toBe("");
+  });
+
+  it("html format with a breach exits 1 and still writes the file", async () => {
+    process.chdir(projA);
+    const tmpFile = path.join(
+      fs.mkdtempSync(path.join(os.tmpdir(), "crap4ts-")),
+      "report.html",
+    );
+    const code = await main([
+      "--format",
+      "html",
+      "--out",
+      tmpFile,
+      "--max-crap",
+      "15",
+    ]);
+    expect(code).toBe(1);
+    expect(fs.readFileSync(tmpFile, "utf8")).toContain("<table");
+  });
+
+  it("invalid --format returns 2", async () => {
+    process.chdir(projA);
+    const code = await main(["--format", "xml"]);
+    expect(code).toBe(2);
+    expect(errorSpy).toHaveBeenCalled();
+    expect(stdout()).toBe("");
+  });
+
+  it("--help mentions html and --out", async () => {
+    process.chdir(projA);
+    const code = await main(["--help"]);
+    expect(code).toBe(0);
+    expect(stdout()).toContain("html");
+    expect(stdout()).toContain("--out");
+  });
 });

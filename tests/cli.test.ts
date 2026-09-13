@@ -297,11 +297,11 @@ describe("cli", () => {
     expect(widget.coverage).toBe(1);
     expect(widget.crap).toBe(crapScore(widget.complexity, 1));
     const util = records.find((r: { name: string }) => r.name === "util");
-    expect(util.coverage).toBeNull();
-    expect(util.crap).toBeNull();
+    expect(util.coverage).toBe(0);
+    expect(util.crap).toBe(crapScore(util.complexity, 0));
   });
 
-  it("--max-crap with a coverage file that matches nothing returns 2", async () => {
+  it("coverage file that matches no analyzed file scores coverage 0", async () => {
     process.chdir(projA);
     const raw = fs.readFileSync(
       path.join(projA, "coverage", "lcov.info"),
@@ -312,11 +312,121 @@ describe("cli", () => {
       "lcov.info",
     );
     fs.writeFileSync(tmp, raw.replace("SF:src/a.ts", "SF:src/nope.ts"));
-    const code = await main(["--coverage", tmp, "--max-crap", "15"]);
-    expect(code).toBe(2);
-    expect(
-      errorSpy.mock.calls.map((args: unknown[]) => String(args[0])).join("\n"),
-    ).toContain("--max-crap requires coverage data");
+    const code = await main(["--coverage", tmp, "--format", "json"]);
+    expect(code).toBe(0);
+    const records = JSON.parse(stdout());
+    expect(records).toHaveLength(2);
+    for (const r of records as {
+      complexity: number;
+      coverage: number;
+      crap: number;
+    }[]) {
+      expect(r.coverage).toBe(0);
+      expect(r.crap).toBe(crapScore(r.complexity, 0));
+    }
+  });
+
+  it("matched file with no DA data for the function span scores coverage 0", async () => {
+    process.chdir(projA);
+    const tmp = path.join(
+      fs.mkdtempSync(path.join(os.tmpdir(), "crap4ts-")),
+      "lcov.info",
+    );
+    fs.writeFileSync(tmp, "TN:\nSF:src/a.ts\nDA:100,1\nend_of_record\n");
+    const code = await main(["--coverage", tmp, "--format", "json"]);
+    expect(code).toBe(0);
+    const records = JSON.parse(stdout());
+    expect(records).toHaveLength(2);
+    for (const r of records as {
+      complexity: number;
+      coverage: number;
+      crap: number;
+    }[]) {
+      expect(r.coverage).toBe(0);
+      expect(r.crap).toBe(crapScore(r.complexity, 0));
+    }
+  });
+
+  it("--max-crap breaches on a tmp project whose coverage matches nothing", async () => {
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "crap4ts-"));
+    fs.mkdirSync(path.join(tmpRoot, "src"), { recursive: true });
+    fs.copyFileSync(
+      path.join(projA, "src", "a.ts"),
+      path.join(tmpRoot, "src", "a.ts"),
+    );
+    fs.mkdirSync(path.join(tmpRoot, "coverage"), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmpRoot, "coverage", "lcov.info"),
+      "TN:\nSF:src/nope.ts\nDA:1,1\nend_of_record\n",
+    );
+    process.chdir(tmpRoot);
+    const code = await main(["src", "--format", "json", "--max-crap", "15"]);
+    expect(code).toBe(1);
+    const records = JSON.parse(stdout());
+    const risky = records.find((r: { name: string }) => r.name === "risky");
+    expect(risky.coverage).toBe(0);
+    expect(risky.crap).toBeGreaterThan(15);
+  });
+
+  it("tmp project with no coverage file keeps nulls and --max-crap exits 2", async () => {
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "crap4ts-"));
+    fs.mkdirSync(path.join(tmpRoot, "src"), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmpRoot, "src", "a.ts"),
+      "export function tiny(x: number): number {\n  return x * 2;\n}\n",
+    );
+    process.chdir(tmpRoot);
+    const code = await main(["src", "--format", "json"]);
+    expect(code).toBe(0);
+    const records = JSON.parse(stdout());
+    expect(records).toHaveLength(1);
+    expect(records[0].coverage).toBeNull();
+    expect(records[0].crap).toBeNull();
+    const gate = await main(["src", "--max-crap", "15"]);
+    expect(gate).toBe(2);
+  });
+
+  it("--max-crap with a coverage file that matches nothing returns 1", async () => {
+    process.chdir(projA);
+    const raw = fs.readFileSync(
+      path.join(projA, "coverage", "lcov.info"),
+      "utf8",
+    );
+    const tmp = path.join(
+      fs.mkdtempSync(path.join(os.tmpdir(), "crap4ts-")),
+      "lcov.info",
+    );
+    fs.writeFileSync(tmp, raw.replace("SF:src/a.ts", "SF:src/nope.ts"));
+    const code = await main([
+      "--coverage",
+      tmp,
+      "--format",
+      "json",
+      "--max-crap",
+      "15",
+    ]);
+    expect(code).toBe(1);
+    const records = JSON.parse(stdout());
+    expect(records).toHaveLength(2);
+    for (const r of records as { coverage: number }[]) {
+      expect(r.coverage).toBe(0);
+    }
+    const risky = records.find((r: { name: string }) => r.name === "risky");
+    expect(risky.crap).toBeGreaterThan(15);
+  });
+
+  it("empty src dir with a coverage file and --max-crap exits 0 with empty records", async () => {
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "crap4ts-"));
+    fs.mkdirSync(path.join(tmpRoot, "src"), { recursive: true });
+    fs.mkdirSync(path.join(tmpRoot, "coverage"), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmpRoot, "coverage", "lcov.info"),
+      "TN:\nSF:src/a.ts\nDA:1,1\nend_of_record\n",
+    );
+    process.chdir(tmpRoot);
+    const code = await main(["src", "--format", "json", "--max-crap", "15"]);
+    expect(code).toBe(0);
+    expect(JSON.parse(stdout())).toEqual([]);
   });
 
   it("invalid --complexity-profile returns 2", async () => {

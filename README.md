@@ -93,6 +93,8 @@ node dist/cli.js src --coverage ./coverage/lcov.info --max-crap 15
 
 Exit 1 means some function is over the limit. Use it in CI.
 
+Functions with no entry in the cover file count as 0% cover when a cover file is given, so a `--max-crap` gate that was green before may now fail. Runs with no cover file are unchanged (complexity only, no scores).
+
 ## Flags
 
 | Flag                         | What it does                                                      |

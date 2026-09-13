@@ -66,10 +66,12 @@ const REPORT_STYLE =
   `border:1px solid #d0d7de;border-radius:6px;background:#fff}` +
   `#crap-search:focus{outline:2px solid #0969da;outline-offset:-1px;border-color:#0969da}` +
   `.table-wrap{overflow-x:auto}` +
-  `table{width:100%;min-width:960px;border-collapse:collapse}` +
+  `table{width:100%;min-width:960px;border-collapse:separate;border-spacing:0}` +
   `thead th{position: sticky; top: 60px;z-index:2;background:#f6f8fa;white-space:nowrap;` +
-  `cursor:pointer;user-select:none}` +
-  `th,td{border:1px solid #d0d7de;padding:8px 12px;text-align:left;vertical-align:top}` +
+  `cursor:pointer;user-select:none;border-top:1px solid #d0d7de}` +
+  `th,td{border-bottom:1px solid #d0d7de;border-right:1px solid #d0d7de;` +
+  `padding:8px 12px;text-align:left;vertical-align:top}` +
+  `th:first-child,td:first-child{border-left:1px solid #d0d7de}` +
   `tbody tr:not(.detail) td:nth-child(2),tbody tr:not(.detail) td:nth-child(4),` +
   `tbody tr:not(.detail) td:nth-child(5),tbody tr:not(.detail) td:nth-child(6)` +
   `{text-align:right;font-variant-numeric:tabular-nums}` +

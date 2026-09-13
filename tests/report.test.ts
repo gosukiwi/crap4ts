@@ -259,6 +259,7 @@ describe("renderHtml", () => {
   it("lays the table full width with a scrollable min width", () => {
     const html = renderHtml(htmlRows);
     expect(html).toContain("table{width:100%;min-width:960px");
+    expect(html).toContain("border-collapse:separate;border-spacing:0");
     expect(html).toContain('class="table-wrap"');
   });
 

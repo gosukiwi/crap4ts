@@ -423,4 +423,22 @@ describe("cli", () => {
     expect(stdout()).toContain("html");
     expect(stdout()).toContain("--out");
   });
+
+  it("html write failure exits 2 with a crap4ts stderr line", async () => {
+    process.chdir(projA);
+    const badOut = path.join("nope-missing-dir", "r.html");
+    expect(fs.existsSync(path.join(projA, "nope-missing-dir", "r.html"))).toBe(
+      false,
+    );
+    const code = await main(["--format", "html", "--out", badOut]);
+    expect(code).toBe(2);
+    expect(fs.existsSync(path.join(projA, "nope-missing-dir", "r.html"))).toBe(
+      false,
+    );
+    expect(stdout()).toBe("");
+    const stderr = errorSpy.mock.calls
+      .map((args) => String(args[0]))
+      .join("\n");
+    expect(stderr).toContain("crap4ts:");
+  });
 });

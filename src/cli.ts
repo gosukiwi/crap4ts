@@ -283,10 +283,14 @@ async function run(argv: string[]): Promise<number> {
   const breach = hasCrapBreach(records, options.maxCrap);
 
   if (options.format === "html") {
-    fs.writeFileSync(
-      path.resolve(cwd, options.out ?? "crap-report.html"),
-      renderHtml(rows),
-    );
+    try {
+      fs.writeFileSync(
+        path.resolve(cwd, options.out ?? "crap-report.html"),
+        renderHtml(rows),
+      );
+    } catch (err) {
+      fail(err instanceof Error ? err.message : String(err));
+    }
   } else if (options.format === "json") {
     console.log(renderJson(records));
   } else {

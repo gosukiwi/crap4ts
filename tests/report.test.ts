@@ -216,4 +216,44 @@ describe("renderHtml", () => {
     expect(html).toContain("position: sticky");
     expect(html).toContain("top: 0");
   });
+
+  it("tags function rows with raw numeric sort keys", () => {
+    const html = renderHtml(htmlRows);
+    expect(html).toContain(`data-line="2"`);
+    expect(html).toContain(`data-complexity="6"`);
+    expect(html).toContain(`data-coverage="0.5"`);
+    expect(html).toContain(`data-crap="30"`);
+  });
+
+  it("emits empty sort keys for null coverage and crap", () => {
+    const html = renderHtml(htmlRows);
+    const segments = html.split("<tr");
+    const riskySegments = segments.filter((segment) =>
+      segment.includes(`data-name="risky"`),
+    );
+    expect(riskySegments).toHaveLength(2);
+    const mainRow = riskySegments.find((segment) =>
+      segment.includes(`data-line="5"`),
+    );
+    expect(mainRow).toBeDefined();
+    expect(mainRow).toContain(`data-coverage=""`);
+    expect(mainRow).toContain(`data-crap=""`);
+  });
+
+  it("marks every excerpt row with the detail class", () => {
+    const html = renderHtml(htmlRows);
+    expect(html.match(/<tr class="detail"/g) ?? []).toHaveLength(3);
+  });
+
+  it("sorts from data attributes paired by the detail marker", () => {
+    const html = renderHtml(htmlRows);
+    const script = html.slice(
+      html.indexOf("<script"),
+      html.indexOf("</script>"),
+    );
+    expect(script).toContain("data-");
+    expect(script).toContain("detail");
+    expect(script).not.toContain("textContent");
+    expect(script).not.toContain("colspan");
+  });
 });

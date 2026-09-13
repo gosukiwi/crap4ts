@@ -213,40 +213,13 @@ function loadCoverageData(
   return null;
 }
 
-function buildRecords(
+function buildOutputs(
   cwd: string,
   srcDir: string,
   profile: ComplexityProfile,
   lcovFiles: LcovFile[] | null,
-): CrapRecord[] {
+): { records: CrapRecord[]; rows: HtmlRow[] } {
   const records: CrapRecord[] = [];
-  const files = collectTsFiles(srcDir).sort();
-  for (const full of files) {
-    const rel = normalize(path.relative(cwd, full));
-    const sourceText = fs.readFileSync(full, "utf8");
-    const fns = analyzeComplexity(rel, sourceText, profile);
-    const lcovFile =
-      lcovFiles === null ? null : matchLcovFile(lcovFiles, rel, cwd);
-    for (const fn of fns) {
-      const coverage =
-        lcovFile === null
-          ? null
-          : functionCoverage(lcovFile, fn.line, fn.endLine);
-      records.push(assembleRecord(fn, coverage));
-    }
-  }
-  records.sort((a, b) =>
-    a.file < b.file ? -1 : a.file > b.file ? 1 : a.line - b.line,
-  );
-  return records;
-}
-
-function buildHtmlRows(
-  cwd: string,
-  srcDir: string,
-  profile: ComplexityProfile,
-  lcovFiles: LcovFile[] | null,
-): HtmlRow[] {
   const rows: HtmlRow[] = [];
   const files = collectTsFiles(srcDir).sort();
   for (const full of files) {
@@ -261,6 +234,7 @@ function buildHtmlRows(
           ? null
           : functionCoverage(lcovFile, fn.line, fn.endLine);
       const record = assembleRecord(fn, coverage);
+      records.push(record);
       rows.push({
         ...record,
         endLine: fn.endLine,
@@ -271,10 +245,10 @@ function buildHtmlRows(
       });
     }
   }
-  rows.sort((a, b) =>
+  records.sort((a, b) =>
     a.file < b.file ? -1 : a.file > b.file ? 1 : a.line - b.line,
   );
-  return rows;
+  return { records, rows };
 }
 
 function requireCoverageForGate(
@@ -299,12 +273,16 @@ async function run(argv: string[]): Promise<number> {
   const cwd = process.cwd();
   const srcDir = resolveSrcDir(cwd, options.src);
   const lcovFiles = loadCoverageData(cwd, options.coveragePath);
-  const records = buildRecords(cwd, srcDir, options.profile, lcovFiles);
+  const { records, rows } = buildOutputs(
+    cwd,
+    srcDir,
+    options.profile,
+    lcovFiles,
+  );
   requireCoverageForGate(records, options.maxCrap);
   const breach = hasCrapBreach(records, options.maxCrap);
 
   if (options.format === "html") {
-    const rows = buildHtmlRows(cwd, srcDir, options.profile, lcovFiles);
     fs.writeFileSync(
       path.resolve(cwd, options.out ?? "crap-report.html"),
       renderHtml(rows),

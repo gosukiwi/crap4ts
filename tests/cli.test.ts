@@ -6,6 +6,19 @@ import { fileURLToPath } from "node:url";
 import { main } from "../src/cli.js";
 import { crapScore } from "../src/crap/index.js";
 
+const { sourceReads } = vi.hoisted(() => ({ sourceReads: [] as string[] }));
+
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  const readFileSync = (...args: unknown[]): unknown => {
+    if (typeof args[0] === "string" && args[0].endsWith(".ts")) {
+      sourceReads.push(args[0]);
+    }
+    return (actual.readFileSync as (...inner: unknown[]) => unknown)(...args);
+  };
+  return { ...actual, readFileSync };
+});
+
 const fixturesDir = path.dirname(fileURLToPath(import.meta.url));
 const projA = path.join(fixturesDir, "fixtures", "projA");
 const projB = path.join(fixturesDir, "fixtures", "projB");
@@ -374,6 +387,25 @@ describe("cli", () => {
     ]);
     expect(code).toBe(1);
     expect(fs.readFileSync(tmpFile, "utf8")).toContain("<table");
+  });
+
+  it("html mode reads each source file exactly once", async () => {
+    process.chdir(projA);
+    const tmpFile = path.join(
+      fs.mkdtempSync(path.join(os.tmpdir(), "crap4ts-")),
+      "report.html",
+    );
+    sourceReads.length = 0;
+    const code = await main(["--format", "html", "--out", tmpFile]);
+    expect(code).toBe(0);
+    const counts = new Map<string, number>();
+    for (const file of sourceReads) {
+      counts.set(file, (counts.get(file) ?? 0) + 1);
+    }
+    expect(counts.size).toBeGreaterThan(0);
+    for (const count of counts.values()) {
+      expect(count).toBe(1);
+    }
   });
 
   it("invalid --format returns 2", async () => {

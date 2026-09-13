@@ -39,7 +39,7 @@ afterEach(() => {
 });
 
 function stdout(): string {
-  return logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+  return logSpy.mock.calls.map((args: unknown[]) => String(args[0])).join("\n");
 }
 
 describe("cli", () => {
@@ -315,7 +315,7 @@ describe("cli", () => {
     const code = await main(["--coverage", tmp, "--max-crap", "15"]);
     expect(code).toBe(2);
     expect(
-      errorSpy.mock.calls.map((args) => String(args[0])).join("\n"),
+      errorSpy.mock.calls.map((args: unknown[]) => String(args[0])).join("\n"),
     ).toContain("--max-crap requires coverage data");
   });
 
@@ -437,7 +437,7 @@ describe("cli", () => {
     );
     expect(stdout()).toBe("");
     const stderr = errorSpy.mock.calls
-      .map((args) => String(args[0]))
+      .map((args: unknown[]) => String(args[0]))
       .join("\n");
     expect(stderr).toContain("crap4ts:");
   });

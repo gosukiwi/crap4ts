@@ -167,4 +167,53 @@ describe("renderHtml", () => {
     expect(html).not.toContain("<link");
     expect(html).not.toContain("<script src");
   });
+
+  it("renders a search box filtering by function or file", () => {
+    const html = renderHtml(htmlRows);
+    expect(html).toContain(`id="crap-search"`);
+    expect(html).toContain(`type="search"`);
+    expect(html).toContain(`placeholder="Filter by function or file"`);
+  });
+
+  it("tags all six header cells with data-sort keys", () => {
+    const html = renderHtml(htmlRows);
+    for (const key of [
+      "file",
+      "line",
+      "name",
+      "complexity",
+      "coverage",
+      "crap",
+    ]) {
+      expect(html).toContain(`data-sort="${key}"`);
+    }
+    expect(html.match(/<th\b/g) ?? []).toHaveLength(6);
+  });
+
+  it("tags body rows with data-name and data-file", () => {
+    const html = renderHtml(htmlRows);
+    expect(html).toContain(`data-name="hot"`);
+    expect(html).toContain(`data-file="src/b.ts"`);
+    expect(html).toContain(`data-name="simple"`);
+    expect(html).toContain(`data-file="src/a.ts"`);
+  });
+
+  it("includes exactly one inline script with search and sort wiring", () => {
+    const html = renderHtml(htmlRows);
+    expect(html.match(/<script/g) ?? []).toHaveLength(1);
+    expect(html).not.toContain("<script src");
+    const script = html.slice(
+      html.indexOf("<script"),
+      html.indexOf("</script>"),
+    );
+    expect(script).toContain("crap-search");
+    expect(script).toContain("data-sort");
+    expect(script).toContain("addEventListener");
+  });
+
+  it("keeps the table header sticky", () => {
+    const html = renderHtml(htmlRows);
+    expect(html).toContain("position: sticky");
+    expect(html).toContain("top: 0");
+  });
 });

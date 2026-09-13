@@ -229,10 +229,11 @@ function buildOutputs(
     const lcovFile =
       lcovFiles === null ? null : matchLcovFile(lcovFiles, rel, cwd);
     for (const fn of fns) {
-      const coverage =
+      const joined =
         lcovFile === null
           ? null
           : functionCoverage(lcovFile, fn.line, fn.endLine);
+      const coverage = lcovFiles === null ? null : (joined ?? 0);
       const record = assembleRecord(fn, coverage);
       records.push(record);
       rows.push({

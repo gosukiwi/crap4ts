@@ -250,9 +250,8 @@ describe("renderHtml", () => {
       html.indexOf("<script"),
       html.indexOf("</script>"),
     );
-    expect(script).toContain("data-");
+    expect(script).toContain('getAttribute("data-"+key)');
     expect(script).toContain("detail");
-    expect(script).not.toContain("textContent");
     expect(script).not.toContain("colspan");
   });
 
@@ -261,6 +260,26 @@ describe("renderHtml", () => {
     expect(html).toContain("table{width:100%;min-width:960px");
     expect(html).toContain("border-collapse:separate;border-spacing:0");
     expect(html).not.toContain("table-wrap");
+  });
+
+  it("marks headers with sort affordances and the initial CRAP direction", () => {
+    const html = renderHtml(htmlRows);
+    expect(html.match(/<span class="arr"/g) ?? []).toHaveLength(6);
+    expect(html).toContain(
+      '<th data-sort="crap" data-dir="desc" aria-sort="descending">',
+    );
+    expect(html).toContain("th[data-sort]:hover");
+  });
+
+  it("updates sort direction indicators on click", () => {
+    const html = renderHtml(htmlRows);
+    const script = html.slice(
+      html.indexOf("<script"),
+      html.indexOf("</script>"),
+    );
+    expect(script).toContain("aria-sort");
+    expect(script).toContain('"▲"');
+    expect(script).toContain('"▼"');
   });
 
   it("keeps the filter bar sticky on a sans-serif page", () => {

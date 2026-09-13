@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CrapRecord } from "../src/crap/index.js";
-import { renderJson, renderTable } from "../src/report.js";
+import type { HtmlRow } from "../src/report.js";
+import { renderHtml, renderJson, renderTable } from "../src/report.js";
 
 const records: CrapRecord[] = [
   {
@@ -73,5 +74,218 @@ describe("renderTable", () => {
     expect(row).toBeDefined();
     expect(row!.startsWith(" ")).toBe(true);
     expect(row).toContain("1.00");
+  });
+});
+
+const htmlRows: HtmlRow[] = [
+  {
+    file: "src/a.ts",
+    line: 1,
+    col: 1,
+    name: "simple",
+    complexity: 1,
+    coverage: 1,
+    crap: 1,
+    endLine: 3,
+    excerpt: "function simple() {}",
+  },
+  {
+    file: "src/a.ts",
+    line: 5,
+    col: 1,
+    name: "risky",
+    complexity: 7,
+    coverage: null,
+    crap: null,
+    endLine: 8,
+    excerpt: "function risky() {}",
+  },
+  {
+    file: "src/b.ts",
+    line: 2,
+    col: 1,
+    name: "hot",
+    complexity: 6,
+    coverage: 0.5,
+    crap: 30,
+    endLine: 9,
+    excerpt: "function hot() {}",
+  },
+];
+
+describe("renderHtml", () => {
+  it("sorts crap 30 before crap 1 before null", () => {
+    const html = renderHtml(htmlRows);
+    expect(html.indexOf("hot")).toBeLessThan(html.indexOf("simple"));
+    expect(html.indexOf("simple")).toBeLessThan(html.indexOf("risky"));
+  });
+
+  it("renders one row per input record", () => {
+    const html = renderHtml(htmlRows);
+    expect(html).toContain("simple");
+    expect(html).toContain("risky");
+    expect(html).toContain("hot");
+  });
+
+  it("flags only the crap-30 row with the high-crap class", () => {
+    const html = renderHtml(htmlRows);
+    const flagged = html.match(/class="[^"]*high-crap[^"]*"/g) ?? [];
+    expect(flagged).toHaveLength(1);
+    const segments = html.split("<tr");
+    const hotSegment = segments.find((segment) => segment.includes("hot"));
+    expect(hotSegment).toContain("high-crap");
+  });
+
+  it("escapes markup in names", () => {
+    const evil: HtmlRow = {
+      file: "src/a.ts",
+      line: 10,
+      col: 1,
+      name: `<b>evil&"x"`,
+      complexity: 2,
+      coverage: 1,
+      crap: 2,
+      endLine: 12,
+      excerpt: "function evil() {}",
+    };
+    const html = renderHtml([...htmlRows, evil]);
+    expect(html).toContain(`&lt;b&gt;evil&amp;&quot;x&quot;`);
+    expect(html).not.toContain(`<b>evil`);
+  });
+
+  it("renders an expander with excerpt and file:line-endLine header", () => {
+    const html = renderHtml(htmlRows);
+    expect(html).toContain("<details");
+    expect(html).toContain("function simple() {}");
+    expect(html).toContain("src/a.ts:1-3");
+  });
+
+  it("references no external assets", () => {
+    const html = renderHtml(htmlRows);
+    expect(html).not.toContain(`src="http`);
+    expect(html).not.toContain(`href="http`);
+    expect(html).not.toContain("<link");
+    expect(html).not.toContain("<script src");
+  });
+
+  it("renders a search box filtering by function or file", () => {
+    const html = renderHtml(htmlRows);
+    expect(html).toContain(`id="crap-search"`);
+    expect(html).toContain(`type="search"`);
+    expect(html).toContain(`placeholder="Filter by function or file"`);
+  });
+
+  it("tags all six header cells with data-sort keys", () => {
+    const html = renderHtml(htmlRows);
+    for (const key of [
+      "file",
+      "line",
+      "name",
+      "complexity",
+      "coverage",
+      "crap",
+    ]) {
+      expect(html).toContain(`data-sort="${key}"`);
+    }
+    expect(html.match(/<th\b/g) ?? []).toHaveLength(6);
+  });
+
+  it("tags body rows with data-name and data-file", () => {
+    const html = renderHtml(htmlRows);
+    expect(html).toContain(`data-name="hot"`);
+    expect(html).toContain(`data-file="src/b.ts"`);
+    expect(html).toContain(`data-name="simple"`);
+    expect(html).toContain(`data-file="src/a.ts"`);
+  });
+
+  it("includes exactly one inline script with search and sort wiring", () => {
+    const html = renderHtml(htmlRows);
+    expect(html.match(/<script/g) ?? []).toHaveLength(1);
+    expect(html).not.toContain("<script src");
+    const script = html.slice(
+      html.indexOf("<script"),
+      html.indexOf("</script>"),
+    );
+    expect(script).toContain("crap-search");
+    expect(script).toContain("data-sort");
+    expect(script).toContain("addEventListener");
+  });
+
+  it("keeps the table header sticky below the toolbar", () => {
+    const html = renderHtml(htmlRows);
+    expect(html).toContain("thead th{position: sticky; top: 60px;");
+  });
+
+  it("tags function rows with raw numeric sort keys", () => {
+    const html = renderHtml(htmlRows);
+    expect(html).toContain(`data-line="2"`);
+    expect(html).toContain(`data-complexity="6"`);
+    expect(html).toContain(`data-coverage="0.5"`);
+    expect(html).toContain(`data-crap="30"`);
+  });
+
+  it("emits empty sort keys for null coverage and crap", () => {
+    const html = renderHtml(htmlRows);
+    const segments = html.split("<tr");
+    const riskySegments = segments.filter((segment) =>
+      segment.includes(`data-name="risky"`),
+    );
+    expect(riskySegments).toHaveLength(2);
+    const mainRow = riskySegments.find((segment) =>
+      segment.includes(`data-line="5"`),
+    );
+    expect(mainRow).toBeDefined();
+    expect(mainRow).toContain(`data-coverage=""`);
+    expect(mainRow).toContain(`data-crap=""`);
+  });
+
+  it("marks every excerpt row with the detail class", () => {
+    const html = renderHtml(htmlRows);
+    expect(html.match(/<tr class="detail"/g) ?? []).toHaveLength(3);
+  });
+
+  it("sorts from data attributes paired by the detail marker", () => {
+    const html = renderHtml(htmlRows);
+    const script = html.slice(
+      html.indexOf("<script"),
+      html.indexOf("</script>"),
+    );
+    expect(script).toContain('getAttribute("data-"+key)');
+    expect(script).toContain("detail");
+    expect(script).not.toContain("colspan");
+  });
+
+  it("lays the table full width with a scrollable min width", () => {
+    const html = renderHtml(htmlRows);
+    expect(html).toContain("table{width:100%;min-width:960px");
+    expect(html).toContain("border-collapse:separate;border-spacing:0");
+    expect(html).not.toContain("table-wrap");
+  });
+
+  it("marks headers with sort affordances and the initial CRAP direction", () => {
+    const html = renderHtml(htmlRows);
+    expect(html.match(/<span class="arr"/g) ?? []).toHaveLength(6);
+    expect(html).toContain(
+      '<th data-sort="crap" data-dir="desc" aria-sort="descending">',
+    );
+    expect(html).toContain("th[data-sort]:hover");
+  });
+
+  it("updates sort direction indicators on click", () => {
+    const html = renderHtml(htmlRows);
+    const script = html.slice(
+      html.indexOf("<script"),
+      html.indexOf("</script>"),
+    );
+    expect(script).toContain("aria-sort");
+    expect(script).toContain('"▲"');
+    expect(script).toContain('"▼"');
+  });
+
+  it("keeps the filter bar sticky on a sans-serif page", () => {
+    const html = renderHtml(htmlRows);
+    expect(html).toContain('class="toolbar"');
+    expect(html).toContain(".toolbar{position:sticky;top:0;");
+    expect(html).toContain("font-family:system-ui");
   });
 });

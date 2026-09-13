@@ -79,6 +79,12 @@ node dist/cli.js src --coverage ./coverage/lcov.info --format json
 
 Each item has `file, line, col, name, complexity, coverage, crap`.
 
+HTML report (single searchable, sortable report with expandable source excerpts per function):
+
+```bash
+node dist/cli.js src --coverage ./coverage/lcov.info --format html --out crap-report.html
+```
+
 ## Stop risky code at the door
 
 ```bash
@@ -89,13 +95,13 @@ Exit 1 means some function is over the limit. Use it in CI.
 
 ## Flags
 
-| Flag                       | What it does                                                      |
-| -------------------------- | ----------------------------------------------------------------- |
-| `[src]`                    | Folder to read (standard: `src`)                                  |
-| `--coverage <path>`        | Cover file to use (standard: `./coverage/lcov.info` when present) |
-| `--format json\|table`     | Output form (standard: `table`)                                   |
-| `--max-crap <n>`           | Fail when any score is above `n`                                  |
-| `--complexity-profile <p>` | `strict` (standard), `balanced`, or `permissive`                  |
+| Flag                         | What it does                                                      |
+| ---------------------------- | ----------------------------------------------------------------- |
+| `[src]`                      | Folder to read (standard: `src`)                                  |
+| `--coverage <path>`          | Cover file to use (standard: `./coverage/lcov.info` when present) |
+| `--format json\|table\|html` | Output form (standard: `table`)                                   |
+| `--max-crap <n>`             | Fail when any score is above `n`                                  |
+| `--complexity-profile <p>`   | `strict` (standard), `balanced`, or `permissive`                  |
 
 TSX files for React apps are next (see issue #4).
 

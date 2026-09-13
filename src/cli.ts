@@ -15,9 +15,9 @@ import {
   parseLcov,
 } from "./lcov.js";
 import type { LcovFile } from "./lcov.js";
-import { renderJson, renderTable } from "./report.js";
+import { renderHtml, renderJson, renderTable, type HtmlRow } from "./report.js";
 
-type Format = "json" | "table";
+type Format = "json" | "table" | "html";
 
 interface Options {
   src: string;
@@ -25,9 +25,10 @@ interface Options {
   format: Format;
   maxCrap: number | null;
   profile: ComplexityProfile;
+  out: string | null;
 }
 
-const USAGE = `usage: crap4ts [src] [--coverage <path>] [--format json|table] [--max-crap <n>] [--complexity-profile strict|balanced|permissive] [--help]`;
+const USAGE = `usage: crap4ts [src] [--coverage <path>] [--format json|table|html] [--out <path>] [--max-crap <n>] [--complexity-profile strict|balanced|permissive] [--help]`;
 
 class ParseError extends Error {}
 
@@ -54,12 +55,23 @@ const FLAG_SPECS: FlagSpec[] = [
   {
     name: "--format",
     validate: (value) => {
-      if (value !== "json" && value !== "table") {
+      if (value !== "json" && value !== "table" && value !== "html") {
         fail(`invalid --format: ${value}`);
       }
     },
     assign: (options, value) => {
       options.format = value as Format;
+    },
+  },
+  {
+    name: "--out",
+    validate: (value) => {
+      if (value === "") {
+        fail("invalid --out: value must not be empty");
+      }
+    },
+    assign: (options, value) => {
+      options.out = value;
     },
   },
   {
@@ -113,6 +125,7 @@ function parseArgs(argv: string[]): Options {
     format: "table",
     maxCrap: null,
     profile: "strict",
+    out: null,
   };
   let positional: string | null = null;
 
@@ -200,13 +213,14 @@ function loadCoverageData(
   return null;
 }
 
-function buildRecords(
+function buildOutputs(
   cwd: string,
   srcDir: string,
   profile: ComplexityProfile,
   lcovFiles: LcovFile[] | null,
-): CrapRecord[] {
+): { records: CrapRecord[]; rows: HtmlRow[] } {
   const records: CrapRecord[] = [];
+  const rows: HtmlRow[] = [];
   const files = collectTsFiles(srcDir).sort();
   for (const full of files) {
     const rel = normalize(path.relative(cwd, full));
@@ -219,13 +233,22 @@ function buildRecords(
         lcovFile === null
           ? null
           : functionCoverage(lcovFile, fn.line, fn.endLine);
-      records.push(assembleRecord(fn, coverage));
+      const record = assembleRecord(fn, coverage);
+      records.push(record);
+      rows.push({
+        ...record,
+        endLine: fn.endLine,
+        excerpt: sourceText
+          .split("\n")
+          .slice(fn.line - 1, fn.endLine)
+          .join("\n"),
+      });
     }
   }
   records.sort((a, b) =>
     a.file < b.file ? -1 : a.file > b.file ? 1 : a.line - b.line,
   );
-  return records;
+  return { records, rows };
 }
 
 function requireCoverageForGate(
@@ -250,11 +273,25 @@ async function run(argv: string[]): Promise<number> {
   const cwd = process.cwd();
   const srcDir = resolveSrcDir(cwd, options.src);
   const lcovFiles = loadCoverageData(cwd, options.coveragePath);
-  const records = buildRecords(cwd, srcDir, options.profile, lcovFiles);
+  const { records, rows } = buildOutputs(
+    cwd,
+    srcDir,
+    options.profile,
+    lcovFiles,
+  );
   requireCoverageForGate(records, options.maxCrap);
   const breach = hasCrapBreach(records, options.maxCrap);
 
-  if (options.format === "json") {
+  if (options.format === "html") {
+    try {
+      fs.writeFileSync(
+        path.resolve(cwd, options.out ?? "crap-report.html"),
+        renderHtml(rows),
+      );
+    } catch (err) {
+      fail(err instanceof Error ? err.message : String(err));
+    }
+  } else if (options.format === "json") {
     console.log(renderJson(records));
   } else {
     console.log(renderTable(records));

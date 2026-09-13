@@ -60,12 +60,11 @@ const REPORT_STYLE =
   `font-size:14px;line-height:1.5;background:#fff}` +
   `h1{font-size:20px;margin:0 0 4px}` +
   `.meta{margin:0 0 8px;color:#57606a}` +
-  `.toolbar{position:sticky;top:0;z-index:3;background:#fff;height:60px;` +
+  `.toolbar{position:sticky;top:0;left:0;z-index:3;background:#fff;height:60px;` +
   `display:flex;align-items:center;border-bottom:1px solid #d0d7de;box-sizing:border-box}` +
   `#crap-search{flex:1;max-width:480px;font:inherit;padding:8px 12px;` +
   `border:1px solid #d0d7de;border-radius:6px;background:#fff}` +
   `#crap-search:focus{outline:2px solid #0969da;outline-offset:-1px;border-color:#0969da}` +
-  `.table-wrap{overflow-x:auto}` +
   `table{width:100%;min-width:960px;border-collapse:separate;border-spacing:0}` +
   `thead th{position: sticky; top: 60px;z-index:2;background:#f6f8fa;white-space:nowrap;` +
   `cursor:pointer;user-select:none;border-top:1px solid #d0d7de}` +
@@ -132,10 +131,10 @@ export function renderHtml(rows: HtmlRow[]): string {
     `<div class="toolbar">` +
     `<input id="crap-search" type="search" placeholder="Filter by function or file">` +
     `</div>` +
-    `<div class="table-wrap"><table>` +
+    `<table>` +
     `<thead><tr><th data-sort="file">FILE</th><th data-sort="line">LINE</th><th data-sort="name">NAME</th><th data-sort="complexity">COMPLEXITY</th><th data-sort="coverage">COVERAGE</th><th data-sort="crap">CRAP</th></tr></thead>` +
     `<tbody>${body}</tbody>` +
-    `</table></div>${REPORT_SCRIPT}</body></html>`
+    `</table>${REPORT_SCRIPT}</body></html>`
   );
 }
 

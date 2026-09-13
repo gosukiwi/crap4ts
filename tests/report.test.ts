@@ -260,7 +260,7 @@ describe("renderHtml", () => {
     const html = renderHtml(htmlRows);
     expect(html).toContain("table{width:100%;min-width:960px");
     expect(html).toContain("border-collapse:separate;border-spacing:0");
-    expect(html).toContain('class="table-wrap"');
+    expect(html).not.toContain("table-wrap");
   });
 
   it("keeps the filter bar sticky on a sans-serif page", () => {

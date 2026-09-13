@@ -1,6 +1,6 @@
 {
   "name": "@gosukiwi/crap4ts",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Finds the riskiest code in your TypeScript project: code that is hard to follow and poorly tested.",
   "license": "MIT",
   "repository": {
